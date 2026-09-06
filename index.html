@@ -1644,7 +1644,7 @@ function viewNutrition(){
     const title = mLabel(m);
     const foodsList = chosenObj ? (chosenObj.items || []) : (m.items || []);
     const foods = link
-      ? `<div class="target" style="color:var(--warm)"><div>&bull;&nbsp; ${link.label}</div></div>`
+      ? `<div class="target"><div>&bull;&nbsp; ${link.label}</div></div>`
       : foodsList.length
         ? `<div class="target">${foodsList.map(it => `<div>&bull;&nbsp; ${esc(it.name)}${it.amt ? ` &middot; ${esc(it.amt)}` : ""}</div>`).join("")}</div>` : "";
     const canChoose = state.nutrition.menu.some(o => o.id !== m.id && mtypeOf(o) === mtypeOf(m)) || state.nutrition.exclusions.length > 0;
@@ -1653,7 +1653,7 @@ function viewNutrition(){
         <div class="name" style="${l[m.id] ? "color:var(--dim);text-decoration:line-through" : ""}">${title}</div>
         ${foods}
       </div>
-      <div class="chk ${l[m.id] ? "on" : ""}" ${link && l[m.id] ? 'style="background:var(--warm);border-color:var(--warm)"' : ""} data-act="ndone" data-r="${m.id}">&#10003;</div>
+      <div class="chk ${l[m.id] ? "on" : ""}" data-act="ndone" data-r="${m.id}">&#10003;</div>
     </div>`;
   };
   html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
