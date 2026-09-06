@@ -1,0 +1,2366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workout">
+<meta name="format-detection" content="telephone=no">
+<title>Workout</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0d10'/%3E%3Cg stroke='%23c3f53c' stroke-width='5.5' stroke-linecap='round' fill='none'%3E%3Cpath d='M21 20v24M43 20v24M11 26v12M53 26v12M21 32h22'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --bg:#0b0d10; --card:#14171c; --card2:#1a1e24; --line:#262c34;
+  --tx:#f2f5f7; --dim:#8b96a2; --acc:#c3f53c; --warm:#ff8a3d; --bad:#ff5f57;
+  --r:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+html,body{margin:0;padding:0;overscroll-behavior-y:none}
+body{
+  background:var(--bg); color:var(--tx);
+  font:17px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  touch-action:manipulation;
+  padding-bottom:calc(92px + env(safe-area-inset-bottom));
+}
+#app{max-width:560px;margin:0 auto;padding:20px 18px 8px}
+h1{font-size:27px;margin:0;letter-spacing:-.4px}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:22px 0 10px;font-weight:600}
+.sub{color:var(--dim);font-size:15px;margin-top:3px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px}
+.row{display:flex;align-items:center;gap:10px}
+.between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.grow{flex:1;min-width:0}
+.badge{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:6px 12px;border-radius:999px}
+.badge.big{font-size:15px;padding:9px 18px;letter-spacing:.09em}
+.badge.bulk{background:rgba(255,138,61,.15);color:var(--warm)}
+.badge.cut{background:rgba(195,245,60,.15);color:var(--acc)}
+.badge.maintain{background:rgba(139,152,169,.16);color:var(--dim)}
+.badge.rest{background:rgba(139,152,169,.16);color:var(--dim)}
+.stat{display:flex;gap:8px;margin-top:14px}
+.stat > div{flex:1;background:var(--card2);border-radius:13px;padding:12px 11px;min-width:0}
+.stat .k{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.wicon{display:inline-flex;width:23px;height:23px;flex:none;color:var(--dim)}
+.wicon svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ibtn{width:45px;height:45px;border-radius:12px;padding:0;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.ibtn svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ibtn.on{border-color:var(--acc);color:var(--acc);background:rgba(195,245,60,.1)}
+.daychip{width:40px;height:40px;border-radius:99px;padding:0;font-weight:600;font-size:15px;color:var(--dim);flex:none}
+.daychip.on{background:var(--acc);border-color:var(--acc);color:#0f1400}
+.stat .v{font-size:22px;font-weight:650;letter-spacing:-.5px;margin-top:4px;white-space:nowrap}
+.stat .v small{font-size:13px;font-weight:500;color:var(--dim)}
+.bar{height:8px;background:#222a34;border-radius:99px;overflow:hidden;margin-top:9px}
+.bar > i{display:block;height:100%;background:var(--acc);border-radius:99px}
+.bar.warm > i{background:var(--warm)}
+/* week date strip */
+.strip{display:flex;align-items:center;gap:0;margin:0 0 18px}
+.strip button.x{padding:6px 3px;font-size:22px}
+.strip .cells{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;flex:1}
+.dcell{text-align:center;cursor:pointer;user-select:none;padding:2px 0}
+.dcell .dw{font-size:12px;color:var(--dim);margin-bottom:6px}
+.dcell .dn{width:42px;height:42px;margin:0 auto;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600}
+.dcell.istoday .dn{box-shadow:inset 0 0 0 1.5px rgba(195,245,60,.55)}
+.dcell.sel .dn{background:var(--acc);color:#0f1400;box-shadow:none}
+.dcell .dot{width:5px;height:5px;border-radius:99px;margin:5px auto 0;background:transparent}
+.dcell .dot.plan{background:var(--dim)}
+.dcell .dot.part{background:var(--warm)}
+.dcell .dot.full{background:var(--acc)}
+.tap{cursor:pointer}
+.chead{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card2);
+  margin:-18px -18px 12px;padding:13px 18px;border-radius:var(--r) var(--r) 0 0;border-bottom:1px solid var(--line)}
+.chead.solo{margin-bottom:-18px;border-radius:var(--r);border-bottom:0}
+.dragh{color:var(--dim);font-size:17px;letter-spacing:1px;padding:8px 10px 8px 2px;cursor:grab;touch-action:none;user-select:none;flex:none;line-height:1}
+.gripbar{display:flex;justify-content:center;margin:-8px 0 2px}
+.gripbar .dragh{padding:2px 26px;font-size:15px}
+.dragging{opacity:.45}
+.pchip{display:inline-flex;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.pchip button{background:none;border:0;padding:11px 6px 11px 17px;font-size:15px;font-weight:600}
+.pchip .pdel{padding:11px 15px 11px 6px;color:var(--dim);font-size:17px}
+.ex{border-top:1px solid var(--line);padding:16px 0}
+.ex:first-of-type{border-top:0;padding-top:4px}
+.chead + .ex{border-top:0;padding-top:4px}
+.ex .name{font-weight:600;font-size:18px}
+.target{color:var(--dim);font-size:15px;margin-top:3px}
+.up{color:var(--acc);font-weight:600}
+.chk{width:54px;height:54px;border-radius:99px;border:2px solid #334050;background:var(--card2);
+  color:transparent;font-size:22px;flex:none;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
+.chk.on{background:var(--acc);border-color:var(--acc);color:#0f1400}
+input,select,button{font:inherit;color:var(--tx)}
+input,select{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:13px 14px;width:100%;-webkit-appearance:none;font-size:17px}
+input:focus,select:focus{outline:none;border-color:#3b4a5e}
+label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:5px}
+.f3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.f2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+button{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;cursor:pointer;user-select:none}
+button:active{transform:translateY(1px)}
+button.pri{background:var(--acc);border-color:var(--acc);color:#0f1400;font-weight:650}
+button.ghost{background:transparent}
+button.sm{padding:11px 17px;font-size:15px;border-radius:11px}
+button.x{background:transparent;border:0;color:var(--dim);padding:12px;font-size:20px;line-height:1}
+button.x:hover{color:var(--bad)}
+.exedit{border-top:1px solid var(--line);padding:12px 0 10px}
+.exedit:first-of-type{border-top:0}
+.exedit .f3{margin-top:8px}
+.exedit label{margin-bottom:4px}
+.today{outline:1px solid rgba(195,245,60,.35)}
+.muted{color:var(--dim)}
+.tiny{font-size:14px;color:var(--dim)}
+.ring{width:60px;height:60px;flex:none}
+.ring text{fill:var(--tx);font-size:12px;font-weight:700}
+nav{position:fixed;left:0;right:0;bottom:0;background:rgba(11,13,16,.94);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+nav button{background:none;border:0;color:var(--dim);font-size:13px;font-weight:600;padding:11px 0;display:grid;gap:4px;justify-items:center}
+nav button.on{color:var(--acc)}
+nav svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.chip{display:inline-block;font-size:11px;padding:3px 8px;border-radius:99px;background:var(--card2);color:var(--dim);border:1px solid var(--line)}
+.hist{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:16px}
+.hist:last-child{border-bottom:0}
+.bigring{width:296px;height:296px;max-width:100%}
+.arc{filter:drop-shadow(0 0 11px rgba(195,245,60,.32))}
+.ringwrap{display:flex;justify-content:center;padding:30px 0 0;
+  background:radial-gradient(circle at 50% 52%, rgba(195,245,60,.07), transparent 62%)}
+.trow{display:flex;gap:18px;align-items:stretch}
+.tcol{flex:1;min-width:0}
+.tdiv{width:1px;background:var(--line)}
+.tval{font-size:27px;font-weight:700;letter-spacing:-.6px;margin-top:7px;white-space:nowrap}
+.tgoal{font-size:15px;color:var(--dim);font-weight:500;letter-spacing:0}
+.k{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.modebtn{display:inline-flex;align-items:center;gap:8px;padding:10px 13px 10px 15px;border-radius:99px;
+  font-weight:650;font-size:15px;color:var(--dim);background:var(--card);border:1px solid var(--line)}
+.modebtn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.modebtn.on{color:var(--tx);border-color:#3a4a5c}
+.sw{width:37px;height:22px;border-radius:99px;background:#2b3544;position:relative;flex:none;transition:background .15s}
+.sw i{position:absolute;top:2.5px;left:2.5px;width:17px;height:17px;border-radius:99px;background:var(--dim);transition:transform .15s ease,background .15s}
+.modebtn.on .sw{background:var(--acc)}
+.modebtn.on .sw i{transform:translateX(14.5px);background:#0f1400}
+.addbtn{display:block;width:100%;background:transparent;border:1.5px dashed #334050;color:var(--dim);
+  border-radius:var(--r);padding:17px;font-weight:600;font-size:17px;margin-bottom:14px}
+.addbtn:hover{color:var(--tx);border-color:#4a5a6e}
+.iconbtn{width:48px;height:48px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0;color:var(--dim)}
+.iconbtn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.iconbtn.on{color:var(--acc);border-color:rgba(195,245,60,.45)}
+.wide{display:inline-flex;width:100%;align-items:center;justify-content:center;gap:8px;color:var(--dim);font-weight:600;font-size:16px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:51;background:var(--card);
+  border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;
+  max-height:86vh;display:flex;flex-direction:column;max-width:560px;margin:0 auto;
+  animation:sheetup .22s ease}
+@keyframes sheetup{from{transform:translateY(48px);opacity:.5}to{transform:translateY(0);opacity:1}}
+.sheet.noanim{animation:none}
+.shead{padding:18px 18px 6px;font-size:19px;font-weight:650;flex:none}
+.sbody{padding:2px 18px 6px;overflow-y:auto;flex:1;min-height:0}
+.sfoot{display:flex;gap:10px;padding:14px 18px calc(16px + env(safe-area-inset-bottom));flex:none;border-top:1px solid var(--line)}
+.sfoot button{flex:1}
+.foot{display:flex;gap:8px;margin:18px 0 6px}
+.foot button{flex:1;font-size:13px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card2);
+  border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-top:9px;cursor:pointer;user-select:none}
+.opt:active{transform:translateY(1px)}
+.opt.on{border-color:rgba(195,245,60,.6);background:rgba(195,245,60,.08)}
+.opt .ck{width:25px;height:25px;border-radius:99px;border:1.5px solid #334050;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:transparent}
+.opt.on .ck{background:var(--acc);border-color:var(--acc);color:#0f1400}
+.opt .oname{font-weight:600;font-size:17px}
+.seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:99px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--dim);font-size:14px;font-weight:650;padding:8px 16px;border-radius:99px}
+.seg button.on{color:var(--acc);background:rgba(195,245,60,.14)}
+.seg button.on.warm{color:var(--warm);background:rgba(255,138,61,.14)}
+.okbtn{width:40px;height:40px;border-radius:99px;background:var(--acc);border:0;color:#0f1400;
+  font-size:17px;font-weight:750;flex:none;display:flex;align-items:center;justify-content:center;padding:0}
+.fab{position:fixed;right:16px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:40;
+  background:var(--acc);border:0;color:#0f1400;border-radius:99px;padding:15px 24px;
+  font-weight:700;font-size:16px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.pcar{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin:2px -18px 0;padding:0 18px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.pcar::-webkit-scrollbar{display:none}
+.pslide{flex:0 0 100%;scroll-snap-align:center;min-width:0}
+.pframe{position:relative;width:100%;height:min(66vh,600px);border-radius:20px;overflow:hidden;background:var(--card2);cursor:pointer}
+.pframe img{width:100%;height:100%;object-fit:cover;display:block}
+.pgrad{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.30) 0%,transparent 24%,transparent 50%,rgba(11,13,16,.88) 100%)}
+.pmeta{position:absolute;left:18px;right:18px;bottom:16px;color:#fff;pointer-events:none}
+.pday{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--acc);margin-bottom:3px}
+.pbig{font-size:23px;font-weight:750;letter-spacing:-.3px}
+.psub{font-size:14px;color:rgba(233,238,245,.72);margin-top:3px}
+.pxdel{position:absolute;top:12px;right:12px;background:rgba(11,13,16,.55);backdrop-filter:blur(6px);
+  border:0;color:#fff;border-radius:99px;min-width:38px;height:38px;padding:0 13px;font-size:18px;line-height:1;
+  display:flex;align-items:center;justify-content:center}
+.pxdel.armed{background:var(--bad);font-size:13px;font-weight:650}
+.pdots{display:flex;justify-content:center;gap:6px;margin-top:14px}
+.pdots i{width:6px;height:6px;border-radius:99px;background:#2b3544;transition:all .15s}
+.pdots i.on{background:var(--acc);width:18px}
+.pcount{text-align:center;margin-top:13px;font-size:13px;color:var(--dim);font-weight:600;letter-spacing:.04em}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="between" style="margin-bottom:16px">
+    <div>
+      <h1 id="hTitle">Today</h1>
+      <div class="sub" id="hSub"></div>
+    </div>
+    <div id="hRight"></div>
+  </div>
+  <main id="view"></main>
+</div>
+<nav><div class="in" id="nav"></div></nav>
+<div id="sheetRoot"></div>
+<div id="fabRoot"></div>
+
+<script>
+"use strict";
+const KEY = "workout.v1";
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const uid = () => Math.random().toString(36).slice(2,9);
+const num = (v, d=0) => { const n = parseFloat(String(v).replace(",",".")); return isNaN(n) ? d : n; };
+const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
+const clamp = (n,a,b) => Math.max(a, Math.min(b,n));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- dates ---------- */
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const parseIso = s => { const [y,m,d] = String(s).split("-").map(Number); return new Date(y, (m||1)-1, d||1); };
+const dayIdx = d => ((d.getDay() + 6) % 7) + 1;            // 1 = Monday ... 7 = Sunday
+const mondayOf = d => { const x = startOfDay(d); x.setDate(x.getDate() - (dayIdx(x) - 1)); return x; };
+
+/* ---------- state ---------- */
+function seed(){
+  const ex = (name, sets, reps, weight) => ({ id: uid(), name, sets, reps, weight });
+  const act = (title, mins, days) => ({ id: uid(), title, type: "activity", mins, days });
+  const wk = (title, exercises, days) => ({ id: uid(), title, exercises, days });
+  const today = new Date();
+  return {
+    profile: {
+      mode: "bulk",
+      weightStart: 78, weightNow: 79.2, weightTarget: 84,
+      fatStart: 18, fatNow: 17.4, fatTarget: 15,
+      regimeDays: 90,
+      anchor: iso(mondayOf(today))
+    },
+    measurements: [],
+    workouts: [
+      wk("Upper", [
+        ex("Разминка",1,1,0),
+        ex("Брусья",3,15,0),
+        ex("Подтягивания",3,12,0),
+        ex("Грудь в кроссовере",2,15,10.2),
+        ex("Спина в кроссовере (2х2х15)",4,15,12.5),
+        ex("Подъемы на предплечья (2х2х15)",4,15,12),
+        ex("Обратные отжимания на трицепс на скамье под 45°",2,15,12),
+        ex("Заминка",1,1,0)
+      ], [1]),
+      wk("Lower", [
+        ex("Разминка",1,1,0),
+        ex("Приседания с грифом (8-15-12-10, 0-10-15-20 кг)",4,12,20),
+        ex("Подъемы на икры с гантелями на одной ноге (2х3х12)",6,12,15),
+        ex("Присяды с гирей на подножке",2,15,16),
+        ex("Подъемы на плечи на скамье",2,15,10),
+        ex("Плечи в кроссовере (2х2х12)",4,12,11),
+        ex("Заминка",1,1,0)
+      ], [2]),
+      act("Swimming", 45, [3, 6]),
+      wk("Upper", [
+        ex("Разминка",1,1,0),
+        ex("Гантели лежа на скамье",3,15,8),
+        ex("Тяга грифа вниз в кроссовере",3,15,20),
+        ex("Отжимания (Бабочка)",2,12,10),
+        ex("Подтягивания (Тяга на себя)",2,20,25),
+        ex("Молотки стоя",2,20,7),
+        ex("Жим гантели из-за головы",2,15,15),
+        ex("Заминка",1,1,0)
+      ], [4]),
+      wk("Lower", [
+        ex("Разминка",1,1,0),
+        ex("Квадрицепс в горизонтальном кроссовере",3,15,60),
+        ex("Подъемы на икры в смите",3,20,30),
+        ex("Болгарские приседы",2,15,12),
+        ex("Подъемы на икры сидя",2,20,35),
+        ex("Плечи в кроссовере (2х2х15)",4,15,15),
+        ex("Складывания на пресс на скамье",2,15,0),
+        ex("Заминка",1,1,0)
+      ], [5])
+    ],
+    planV2: true,
+    backup: [wk("Home workout", [ex("Push-ups",4,15,0), ex("Air squats",4,20,0), ex("Plank, sec",3,60,0)])],
+    homeDays: {},
+    nutrition: { rules: [{ id: "water", name: "Water", kind: "count", target: 5, unit: "glasses" }], logs: {}, menu: [
+      { id: uid(), name: "Breakfast", home: false },
+      { id: uid(), name: "Lunch",     home: false },
+      { id: uid(), name: "Dinner",    home: false }
+    ], exclusions: [{ id: uid(), name: "Sugar", limit: 3, alts: [] }], exlog: {} },
+    rules: [
+      { id: uid(), scope: "all", metric: "reps",   amount: 1, every: 1, cap: 4  },
+      { id: uid(), scope: "all", metric: "weight", amount: 1, every: 2, cap: 20 }
+    ],
+    logs: {}
+  };
+}
+
+
+let state, tab = "home";
+let sel = iso(new Date());     // selected date on the main screen
+let weekOffset = 0;            // which week the strip shows, 0 = current
+let editing = false;           // Workout page in edit mode
+let editTargets = false;       // targets form open on Home
+let editN = false;             // nutrition rules edit mode
+let showRules = false;         // autorules section expanded on Workout
+let armed = null;              // destructive button awaiting second tap
+let sheet = null;              // bottom sheet: { kind: "workout"|"menu", toBackup?, draft }
+let sheetNew = false;          // sheet just opened -> play the slide-in once
+let exOpen = null;             // exercise expanded inside an editor
+let wkOpen = null;             // which workout is expanded in edit mode (accordion)
+let wtAdd = null;              // workout editor currently showing the new-type inset
+let wtAddIcon = null;          // icon selected in that inset
+let wtAddName = "";            // name typed in that inset (survives re-renders)
+let gMetric = "weight";        // trend graph: which metric
+let gSel = null;               // trend graph: date of the tapped point (its value shown), null = none
+let gEdit = null;              // trend history: date of the log being edited
+let gAdd = false;              // trend graph: add-log inset open
+try { state = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch(e) { state = seed(); }
+if (state.profile.regimeDays == null) state.profile.regimeDays = 90;
+if (!state.backup){
+  const ex = (name, sets, reps, weight) => ({ id: uid(), name, sets, reps, weight });
+  state.backup = [{ id: uid(), title: "Home workout", exercises: [ex("Push-ups",4,15,0), ex("Air squats",4,20,0), ex("Plank, sec",3,60,0)] }];
+}
+if (!state.homeDays) state.homeDays = {};
+if (!state.nutrition) state.nutrition = { rules: [], logs: {} };
+if (!state.nutrition.exlog) state.nutrition.exlog = {};
+if (!state.nutrition.xpicks) state.nutrition.xpicks = {};
+if (state.nutrition.cheat){
+  state.nutrition.exclusions = state.nutrition.exclusions || [];
+  const ch = state.nutrition.cheat;
+  const nid = uid();
+  state.nutrition.exclusions.push({ id: nid, name: "Cheat", limit: num(ch.limit, 3), alts: [...(ch.options || [])] });
+  for (const d in state.nutrition.exlog){
+    if (state.nutrition.exlog[d].cheat){ state.nutrition.exlog[d][nid] = state.nutrition.exlog[d].cheat; delete state.nutrition.exlog[d].cheat; }
+  }
+  for (const d in state.nutrition.xpicks){
+    if (state.nutrition.xpicks[d].cheat){ state.nutrition.xpicks[d][nid] = state.nutrition.xpicks[d].cheat; delete state.nutrition.xpicks[d].cheat; }
+  }
+  delete state.nutrition.cheat;
+}
+if (!state.nutrition.exclusions) state.nutrition.exclusions = [];
+if (!state.nutrition.rules) state.nutrition.rules = [];
+state.nutrition.rules.forEach(r => { if (!r.kind) r.kind = "check"; });
+if (state.nutrition.water){
+  if (!state.nutrition.rules.some(r => r.id === "water"))
+    state.nutrition.rules.push({ id: "water", name: "Water", kind: "count", target: num(state.nutrition.water.goal, 5), unit: "glasses" });
+  for (const d in (state.nutrition.wlog || {})){
+    if (state.nutrition.wlog[d]) (state.nutrition.logs[d] = state.nutrition.logs[d] || {}).water = state.nutrition.wlog[d];
+  }
+  delete state.nutrition.water; delete state.nutrition.wlog;
+}
+if (!state.nutrition.mopts) state.nutrition.mopts = {};
+if (!state.nutrition.xmeal) state.nutrition.xmeal = {};
+if (!state.wopts) state.wopts = {};
+const normFood = it => typeof it === "string" ? { name: it, amt: "" } : it;
+state.nutrition.menu.forEach(m => {
+  if (m.items) m.items = m.items.map(normFood);
+  if (m.alts) m.alts = m.alts.map(a => typeof a === "string" ? { name: a, items: [] } : a);
+  (m.alts || []).forEach(a => { if (!a.id) a.id = uid(); if (a.items) a.items = a.items.map(normFood); });
+  if (!m.mtype){
+    const n = (m.name || "").toLowerCase();
+    m.mtype = n.includes("breakfast") ? "breakfast" : n.includes("lunch") ? "lunch" : n.includes("dinner") ? "dinner" : "snack";
+  }
+});
+state.nutrition.exclusions.forEach(x => { if (x.alts) x.alts = x.alts.map(normFood); });
+(state.nutrition.presets || []).forEach(pr => {
+  (pr.menu || []).forEach(m => {
+    if (m.items) m.items = m.items.map(normFood);
+    (m.alts || []).forEach(a => { if (a.items) a.items = a.items.map(normFood); });
+  });
+  (pr.exclusions || []).forEach(x => { if (x.alts) x.alts = x.alts.map(normFood); });
+});
+for (const d in state.nutrition.mopts){
+  for (const mid in state.nutrition.mopts[d]){
+    const v = state.nutrition.mopts[d][mid];
+    const m = state.nutrition.menu.find(x => x.id === mid);
+    if (!m) continue;
+    const alt = (m.alts || []).find(a => a.name === v);   // very old picks stored the alt's name
+    if (alt) state.nutrition.mopts[d][mid] = alt.id;
+  }
+}
+// alternatives are gone as a concept: promote them to standalone unscheduled items (same id, so picks keep resolving)
+{
+  const promoted = [];
+  state.nutrition.menu.forEach(m => {
+    (m.alts || []).forEach(a => promoted.push({
+      id: a.id,
+      name: (a.name && a.name !== m.name) ? a.name : (((a.items || [])[0] || {}).name || m.name + " 2"),
+      mtype: m.mtype, days: [], items: a.items || []
+    }));
+    delete m.alts;
+  });
+  state.nutrition.menu.push(...promoted);
+}
+for (const d in state.nutrition.mopts){
+  for (const mid in state.nutrition.mopts[d]){
+    if (!state.nutrition.menu.some(x => x.id === state.nutrition.mopts[d][mid])) delete state.nutrition.mopts[d][mid];
+  }
+}
+for (const d in state.nutrition.logs) for (const id in state.nutrition.logs[d]){
+  const v = state.nutrition.logs[d][id];
+  if (typeof v === "string"){
+    (state.nutrition.mopts[d] = state.nutrition.mopts[d] || {})[id] = v;
+    state.nutrition.logs[d][id] = true;
+  }
+}
+if (!state.nutrition.menu) state.nutrition.menu = [
+  { id: uid(), name: "Breakfast", home: false },
+  { id: uid(), name: "Lunch",     home: false },
+  { id: uid(), name: "Dinner",    home: false }
+];
+if (!state.nutrition.presets) state.nutrition.presets = [
+  { id: uid(), name: "Basics", rules: ["2L+ water", "Protein in every meal", "Vegetables twice a day", "No sugary drinks"] },
+  { id: uid(), name: "Cut",    rules: ["Calorie deficit ~500 kcal", "No food after 21:00", "No alcohol", "Sweets max once a week"] },
+  { id: uid(), name: "Bulk",   rules: ["Calorie surplus ~300 kcal", "4 meals a day", "Protein 2 g per kg", "Creatine 5 g daily"] }
+];
+if (state.plan) for (const k in state.plan){                       // legacy: single-workout days -> arrays
+  const d = state.plan[k];
+  if (!Array.isArray(d)){
+    state.plan[k] = (d.exercises && d.exercises.length) ? [{ id: uid(), title: d.title || "Workout", exercises: d.exercises }] : [];
+  }
+}
+if (!state.planV2){ state.workouts = seed().workouts; state.planV2 = true; delete state.plan; }
+if (!state.workouts){                                              // legacy: per-day buckets -> flat list
+  state.workouts = [];
+  for (let d = 1; d <= 7; d++) for (const w of (state.plan && state.plan[d]) || []) state.workouts.push({ ...w, days: [d] });
+}
+delete state.plan;
+{
+  const promoted = [];
+  state.workouts.forEach(w => {
+    (w.alts || []).forEach(a => promoted.push({ ...a, days: [], icon: a.icon || w.icon, wtype: a.wtype || w.wtype }));
+    delete w.alts;
+  });
+  state.workouts.push(...promoted);
+  state.workouts.forEach(w => { if (!w.wtype) w.wtype = w.type === "activity" ? "cardio" : "strength"; });
+}
+// a workout type = name + icon, one concept
+const ICONKEYS = ["strength", "cardio", "ball", "swim", "bike", "zap", "hike", "mobility"];
+if (!state.wtypes) state.wtypes = ["strength", "cardio"];
+state.wtypes = state.wtypes.map(t => typeof t === "string" ? { name: t, icon: ICONKEYS.includes(t) ? t : "zap" } : t);
+state.workouts.forEach(w => {
+  if (!state.wtypes.some(t => t.name === w.wtype))
+    state.wtypes.push({ name: w.wtype, icon: (w.icon && ICONKEYS.includes(w.icon)) ? w.icon : "zap" });
+});
+for (const d in state.logs) for (const id in state.logs[d]){
+  const e = state.logs[d][id];
+  if (e && e.sets){ state.logs[d][id] = { done: e.sets.some(Boolean) }; }
+}
+if (!state.measurements) state.measurements = [];
+// 2026-08-31: replace fabricated demo history with the real log (one-time)
+if (!state.measReset1){
+  state.measurements = [
+    { date: "2026-08-26", weight: 74.5,  fat: 11.3 },
+    { date: "2026-08-30", weight: 74.8,  fat: 11.3 },
+    { date: "2026-08-31", weight: 74.35, fat: 11.3 }
+  ];
+  state.profile.weightNow = 74.35;
+  state.profile.fatNow = 11.3;
+  state.measReset1 = true;
+}
+// custom types vanish on their own once no workout uses them; strength/cardio are permanent
+const gcTypes = () => {
+  if (state.wtypes) state.wtypes = state.wtypes.filter(t =>
+    t.name === "strength" || t.name === "cardio" || state.workouts.some(x => wtypeOfW(x) === t.name));
+};
+const save = () => { try { gcTypes(); snapDays(); } catch(e) {} try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} };
+
+/* ---------- progression engine ---------- */
+function weeksElapsed(){
+  const a = mondayOf(parseIso(state.profile.anchor || iso(new Date())));
+  const w = Math.floor((mondayOf(new Date()) - a) / 6048e5);
+  return Math.max(0, w);
+}
+function daysElapsed(){
+  const a = parseIso(state.profile.anchor || iso(new Date()));
+  return Math.max(1, Math.floor((startOfDay(new Date()) - a) / 864e5) + 1);
+}
+// one rule, evaluated at week w: raw growth, capped value, and whether it is finished
+function ruleDelta(r, w){
+  const every = Math.max(1, num(r.every, 1));
+  const amt = num(r.amount, 0);
+  const raw = Math.floor(w / every) * amt;
+  const hasCap = r.cap != null && String(r.cap).trim() !== "";
+  const cap = Math.abs(num(r.cap, 0));
+  const val = !hasCap ? raw : (amt < 0 ? Math.max(raw, -cap) : Math.min(raw, cap));
+  const capped = hasCap && Math.abs(raw + amt) > cap;
+  return { every, amt, raw, val, capped, weeksToNext: every - (w % every) };
+}
+// total delta this exercise has earned from the autorules, by metric
+function deltas(exId){
+  const w = weeksElapsed();
+  const out = { sets: 0, reps: 0, weight: 0, mins: 0 };
+  for (const r of state.rules){
+    if (r.scope !== "all" && r.scope !== exId) continue;
+    if (out[r.metric] != null) out[r.metric] += ruleDelta(r, w).val;
+  }
+  return out;
+}
+function resolve(ex){
+  const d = deltas(ex.id);
+  if (ex.type === "time"){
+    return { time: true, mins: Math.max(1, num(ex.mins, 30) + d.mins), d };
+  }
+  return {
+    time: false,
+    sets:   Math.max(1, num(ex.sets,1)   + d.sets),
+    reps:   Math.max(1, num(ex.reps,1)   + d.reps),
+    weight: Math.max(0, num(ex.weight,0) + d.weight),
+    d
+  };
+}
+const occursOn = (w, dateIso) => w.date ? w.date === dateIso : (w.days || []).includes(dayIdx(parseIso(dateIso)));
+const workoutsFor = dateIso => state.workouts.filter(w => occursOn(w, dateIso));
+const effOf = (w, dateIso) => {
+  const cid = (state.wopts[dateIso] || {})[w.id];
+  return (cid && cid !== w.id && state.workouts.find(o => o.id === cid)) || w;
+};
+const unitsOf = w => w.type === "activity" ? [{ id: w.id, name: w.title, type: "time", mins: w.mins }] : w.exercises;
+const exercisesFor = dateIso => workoutsFor(dateIso).flatMap(w => unitsOf(effOf(w, dateIso)));
+const findWk = id => state.workouts.find(w => w.id === id) || state.backup.find(x => x.id === id) || null;
+const findMenu = id => state.nutrition.menu.find(x => x.id === id);
+const allExercises = () => state.workouts.flatMap(w =>
+  unitsOf(w).map(e => ({ ...e, lbl: w.date ? "1x" : (w.days || []).length ? DAYS[w.days[0] - 1].slice(0,3) : "&mdash;" })));
+
+/* ---------- logs: one done-flag per exercise per date ---------- */
+const exDone = (date, ex) => !!(state.logs[date] && state.logs[date][ex.id] && state.logs[date][ex.id].done);
+function toggleDone(date, ex){
+  const day = state.logs[date] || (state.logs[date] = {});
+  if (!day[ex.id]) day[ex.id] = { done: false };
+  day[ex.id].done = !day[ex.id].done;
+}
+function dayDone(date){
+  const l = state.logs[date]; if (!l) return 0;
+  return Object.values(l).filter(e => e.done).length;
+}
+function ring(pct, color = "var(--acc)"){
+  const r = 21, c = 2*Math.PI*r;
+  return `<svg class="ring" viewBox="0 0 52 52">
+    <circle cx="26" cy="26" r="${r}" stroke="#222a34" stroke-width="5" fill="none"/>
+    <circle cx="26" cy="26" r="${r}" stroke="${color}" stroke-width="5" fill="none" stroke-linecap="round"
+      stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct)}" transform="rotate(-90 26 26)"/>
+    <text x="26" y="30" text-anchor="middle">${Math.round(pct*100)}%</text>
+  </svg>`;
+}
+
+function weekStrip(kind){
+  const mon = mondayOf(new Date()); mon.setDate(mon.getDate() + weekOffset*7);
+  const todayIso = iso(new Date());
+  let cells = "";
+  for (let i = 0; i < 7; i++){
+    const d = new Date(mon); d.setDate(d.getDate() + i);
+    const id = iso(d);
+    let dot = "";
+    const s = snapOf(id);
+    if (kind === "nutrition"){
+      const habs = s ? s.habits : state.nutrition.rules;
+      if (habs.length){
+        const done = habs.filter(r => habitDone(r, id)).length;
+        dot = done >= habs.length ? "full" : done > 0 ? "part" : "plan";
+      }
+    } else {
+      const exIds = s ? s.w.flatMap(w => w.exs.map(e => e.id)) : exercisesFor(id).map(e => e.id);
+      if (exIds.length){
+        const done = exIds.filter(eid => exDone(id, { id: eid })).length;
+        dot = done >= exIds.length ? "full" : done > 0 ? "part" : "plan";
+      }
+    }
+    cells += `<div class="dcell ${id===sel?"sel":""} ${id===todayIso?"istoday":""}" data-act="pick" data-date="${id}">
+      <div class="dw">${DAYS[i][0]}</div>
+      <div class="dn">${d.getDate()}</div>
+      <div class="dot ${dot}"></div>
+    </div>`;
+  }
+  return `<div class="strip">
+    <button class="x" data-act="wshift" data-d="-1" title="Previous week">&lsaquo;</button>
+    <div class="cells">${cells}</div>
+    <button class="x" data-act="wshift" data-d="1" title="Next week">&rsaquo;</button>
+  </div>`;
+}
+
+const WICONS = {
+  strength: '<path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/>',
+  cardio:   '<path d="M19.6 12.6 12 20l-7.6-7.4a5 5 0 1 1 7.1-7.1l.5.5.5-.5a5 5 0 1 1 7.1 7.1z"/>',
+  ball:     '<circle cx="12" cy="12" r="9"/><path d="M4.6 6.2a12 12 0 0 1 0 11.6M19.4 6.2a12 12 0 0 0 0 11.6"/>',
+  swim:     '<path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 17.5c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>',
+  bike:     '<circle cx="6" cy="17" r="3.5"/><circle cx="18" cy="17" r="3.5"/><path d="M6 17 9.5 9h5l3.5 8M9.5 9 7.5 5h3"/>',
+  zap:      '<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>',
+  hike:     '<path d="m2.5 19.5 6.5-11 4 6.5 3-4.5 5.5 9z"/>',
+  mobility: '<circle cx="12" cy="5" r="2.2"/><path d="M12 7.5V14M12 14l-4.5 6M12 14l4.5 6M4.5 10.5 12 9l7.5 1.5"/>'
+};
+const defIcon = w => w.type === "activity" ? "cardio" : "strength";
+const wtypeOfW = w => w.wtype || (w.type === "activity" ? "cardio" : "strength");
+// the type owns the icon; legacy per-workout icons and snapshot entries fall back to their stored key
+const iconOfW = w => {
+  const t = state.wtypes.find(x => x.name === w.wtype);
+  return (t && t.icon) || w.icon || defIcon(w);
+};
+const wicon = w => `<span class="wicon"><svg viewBox="0 0 24 24">${WICONS[iconOfW(w)] || WICONS[defIcon(w)]}</svg></span>`;
+
+const wtInset = wid => `<div style="margin-top:9px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px">
+    <div class="between">
+      <label style="margin-bottom:0">New type</label>
+      <div class="row" style="gap:2px">
+        <button class="x" data-act="wtcancel" title="Cancel">&times;</button>
+        <button class="okbtn" data-act="wtsave" data-w="${wid}" title="Create">&#10003;</button>
+      </div>
+    </div>
+    <input id="wtname" placeholder="Name, e.g. Yoga" value="${esc(wtAddName)}" style="margin-top:8px">
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px">
+      ${Object.keys(WICONS).map(k => `<button class="ibtn ${wtAddIcon === k ? "on" : ""}" data-act="wtselicon" data-i="${k}"><svg viewBox="0 0 24 24">${WICONS[k]}</svg></button>`).join("")}
+    </div>
+  </div>`;
+
+function wkCardView(w){
+  const eff = effOf(w, sel);
+  const hasAlts = state.workouts.some(o => o.id !== w.id && wtypeOfW(o) === wtypeOfW(w));
+  const origin = eff !== w ? `<div class="target">${esc(w.title)}</div>` : "";
+  const titleAct = hasAlts ? `data-act="wchoose" data-w="${w.id}"` : "";
+  if (eff.type === "activity"){
+    const r = resolve({ id: eff.id, type: "time", mins: eff.mins });
+    const on = exDone(sel, { id: eff.id });
+    const bump = r.d.mins ? ` <span class="up">&uarr; ${(r.d.mins > 0 ? "+" : "") + fmt(r.d.mins)} min</span>` : "";
+    return `<div class="card">
+      <div class="chead solo">
+        <div class="row grow" style="gap:10px">${wicon(eff)}
+          <div class="grow ${hasAlts ? "tap" : ""}" ${titleAct}>
+            <div style="font-size:19px;font-weight:650;${on ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(eff.title)}</div>
+            ${origin}
+            <div class="target">${fmt(r.mins)} min${bump}</div>
+          </div>
+        </div>
+        <div class="chk ${on ? "on" : ""}" data-act="exdone" data-ex="${eff.id}">&#10003;</div>
+      </div>
+    </div>`;
+  }
+  const total = (eff.exercises || []).length;
+  let done = 0;
+  const rows = (eff.exercises || []).map(ex => {
+    const r = resolve(ex), on = exDone(sel, ex);
+    if (on) done++;
+    const sign = n => (n > 0 ? "+" : "") + fmt(n);
+    const bump = [];
+    if (r.time){
+      if (r.d.mins) bump.push(`${sign(r.d.mins)} min`);
+    } else {
+      if (r.d.reps)   bump.push(`${sign(r.d.reps)} rep${Math.abs(r.d.reps) === 1 ? "" : "s"}`);
+      if (r.d.weight) bump.push(`${sign(r.d.weight)} kg`);
+      if (r.d.sets)   bump.push(`${sign(r.d.sets)} set${Math.abs(r.d.sets) === 1 ? "" : "s"}`);
+    }
+    const targetTxt = r.time ? `${fmt(r.mins)} min` : `${r.sets} &times; ${fmt(r.reps)}${r.weight ? ` @ ${fmt(r.weight)} kg` : ""}`;
+    return `<div class="ex between">
+      <div class="grow">
+        <div class="name" style="${on ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(ex.name)}</div>
+        <div class="target">${targetTxt}
+          ${bump.length ? `<span class="up">&nbsp;&uarr; ${bump.join(", ")}</span>` : ""}</div>
+      </div>
+      <div class="chk ${on ? "on" : ""}" data-act="exdone" data-ex="${ex.id}">&#10003;</div>
+    </div>`;
+  }).join("");
+  const allDone = total > 0 && done === total;
+  return `<div class="card">
+    <div class="chead">
+      <div class="row grow" style="gap:10px">${wicon(eff)}
+        <div class="grow ${hasAlts ? "tap" : ""}" ${titleAct}>
+          <div style="font-size:19px;font-weight:650;${allDone ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(eff.title)}</div>
+          ${origin}
+        </div>
+      </div>
+      ${ring(total ? done/total : 0)}
+    </div>${rows}</div>`;
+}
+
+function scheduleRow(w){
+  if (!w.days && !w.date) return "";
+  const oneTime = !!w.date;
+  return `<div style="margin-top:12px"><label>Repeat</label>
+    <div class="row" style="gap:7px">
+      <button class="sm ${oneTime ? "ghost" : "pri"}" data-act="wkrecur" data-w="${w.id}" data-t="weekly">Weekly</button>
+      <button class="sm ${oneTime ? "pri" : "ghost"}" data-act="wkrecur" data-w="${w.id}" data-t="once">One-time</button>
+    </div>
+    ${oneTime
+      ? `<div class="tiny" style="margin-top:9px">Only on ${esc(w.date)}</div>`
+      : `<div class="row" style="margin-top:10px;gap:6px">
+          ${DAYS.map((d,i) => `<button class="daychip ${(w.days || []).includes(i+1) ? "on" : ""}" data-act="wkday" data-w="${w.id}" data-d="${i+1}">${d[0]}</button>`).join("")}
+        </div>`}
+  </div>`;
+}
+
+function wkCardEdit(w){
+  const isAct = w.type === "activity";
+  const wkChips = `<div class="row" style="margin-top:12px;gap:7px">
+    <button class="sm ${isAct ? "ghost" : "pri"}" data-act="wktype" data-w="${w.id}" data-t="list">Exercise list</button>
+    <button class="sm ${isAct ? "pri" : "ghost"}" data-act="wktype" data-w="${w.id}" data-t="activity">Single activity</button>
+  </div>
+  <div style="margin-top:12px"><label>Type: ${esc(cap1(wtypeOfW(w)))}</label>
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      ${state.wtypes.map(t => `<button class="ibtn ${wtypeOfW(w) === t.name ? "on" : ""}" data-act="wkwtype" data-w="${w.id}" data-t="${esc(t.name)}" title="${esc(cap1(t.name))}">
+        <svg viewBox="0 0 24 24">${WICONS[t.icon] || ""}</svg></button>`).join("")}
+      ${wtAdd === w.id ? "" : `<button class="ibtn" data-act="wtadd" data-w="${w.id}" title="Add type" style="font-size:24px;line-height:1">+</button>`}
+    </div>
+  </div>
+  ${wtAdd === w.id ? wtInset(w.id) : ""}`;
+
+  const titleRow = `<div class="row">
+        <input class="grow" data-act="wktitle" data-w="${w.id}" value="${esc(w.title)}" style="font-weight:650">
+        ${armed === "delwk:" + w.id
+          ? `<button class="ghost sm" data-act="delwk" data-w="${w.id}" style="color:var(--bad);border-color:rgba(255,95,87,.35);flex:none">Tap again</button>`
+          : `<button class="x" data-act="delwk" data-w="${w.id}" title="Delete">&times;</button>`}
+        <button class="okbtn" data-act="wkopen" data-w="${w.id}" title="Done">&#10003;</button>
+      </div>`;
+  let inner;
+  if (isAct){
+    inner = `
+      ${titleRow}
+      ${wkChips}
+      ${scheduleRow(w)}
+      <div class="f3" style="margin-top:12px">
+        <div><label>Minutes</label><input inputmode="numeric" data-act="wkmins" data-w="${w.id}" value="${esc(w.mins ?? 60)}"></div>
+      </div>
+      <div class="tiny" style="margin-top:12px">One checkmark for the whole activity.</div>`;
+  } else {
+    const rows = (w.exercises || []).map(ex => {
+      const r = resolve(ex);
+      const time = ex.type === "time";
+      const summary = time ? `${fmt(r.mins)} min` : `${r.sets} &times; ${fmt(r.reps)}${r.weight ? ` @ ${fmt(r.weight)} kg` : ""}`;
+      if (exOpen !== ex.id){
+        return `<div class="exedit">
+          <div class="between">
+            <div class="grow tap" data-act="exopen" data-ex="${ex.id}">
+              <div style="font-weight:600">${esc(ex.name)}</div>
+              <div class="tiny">${summary}</div>
+            </div>
+            ${delBtn("delex", ex.id, `data-w="${w.id}" data-ex="${ex.id}"`)}
+          </div>
+        </div>`;
+      }
+      const f = (field, mode, label) => `<div><label>${label}</label>
+        <input inputmode="${mode}" data-act="exf" data-w="${w.id}" data-ex="${ex.id}" data-f="${field}" value="${esc(ex[field] ?? "")}"></div>`;
+      const typeChips = `<div class="row" style="margin-top:9px;gap:7px">
+        <button class="sm ${time ? "ghost" : "pri"}" data-act="extype" data-w="${w.id}" data-ex="${ex.id}" data-t="str">Sets &times; reps</button>
+        <button class="sm ${time ? "pri" : "ghost"}" data-act="extype" data-w="${w.id}" data-ex="${ex.id}" data-t="time">Minutes</button>
+      </div>`;
+      const fields = time
+        ? `<div class="f3" style="margin-top:9px">${f("mins","numeric","Minutes")}</div>`
+        : `<div class="f3" style="margin-top:9px">${f("sets","numeric","Sets")}${f("reps","numeric","Reps")}${f("weight","decimal","Kg")}</div>`;
+      return `<div class="exedit" style="background:rgba(195,245,60,.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:12px">
+        <div class="row">
+          <input class="grow" data-act="exf" data-w="${w.id}" data-ex="${ex.id}" data-f="name" value="${esc(ex.name)}">
+          ${delBtn("delex", ex.id, `data-w="${w.id}" data-ex="${ex.id}"`)}
+          <button class="okbtn" data-act="exopen" data-ex="${ex.id}" title="Done">&#10003;</button>
+        </div>
+        ${typeChips}
+        ${fields}
+      </div>`;
+    }).join("");
+    inner = `
+      ${titleRow}
+      ${wkChips}
+      ${scheduleRow(w)}
+      <div style="margin-top:8px">${rows || `<div class="muted" style="padding:10px 0 4px">Name the workout above and add exercises below.</div>`}</div>
+      <div style="margin-top:10px"><button class="ghost" data-act="addex" data-w="${w.id}">+ Add exercise</button></div>
+      <div class="tiny" style="margin-top:12px">Sets / reps / kg are the <b>base</b> values. Autorules add on top. ${w._backup || state.backup.some(x => x.id === w.id) ? "This edits your home backup set, shown on any day you switch to Home." : "Changes apply everywhere this workout appears."}</div>`;
+  }
+
+  return `<div class="card" data-drag-row data-id="${w.id}">
+    <div class="gripbar"><span class="dragh" data-drag="workouts">&#8801;&#8801;</span></div>
+    ${inner}
+  </div>`;
+}
+
+function wkCardHist(w){
+  const live = state.workouts.find(x => x.id === w.id);
+  const hasAlts = !!(live && state.workouts.some(o => o.id !== live.id && wtypeOfW(o) === wtypeOfW(live)));
+  const titleAct = hasAlts ? `data-act="wchoose" data-w="${w.id}"` : "";
+  const isAct = w.exs.length === 1 && w.exs[0].id === w.id;
+  if (isAct){
+    const e = w.exs[0], on = exDone(sel, e);
+    return `<div class="card">
+      <div class="chead solo">
+        <div class="row grow" style="gap:10px">${wicon({ icon: w.icon })}
+          <div class="grow ${hasAlts ? "tap" : ""}" ${titleAct}>
+            <div style="font-size:19px;font-weight:650;${on ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(w.title)}</div>
+            <div class="target">${e.t}</div>
+          </div>
+        </div>
+        <div class="chk ${on ? "on" : ""}" data-act="exdone" data-ex="${e.id}">&#10003;</div>
+      </div>
+    </div>`;
+  }
+  let done = 0;
+  const rows = w.exs.map(e => {
+    const on = exDone(sel, e); if (on) done++;
+    return `<div class="ex between">
+      <div class="grow">
+        <div class="name" style="${on ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(e.name)}</div>
+        <div class="target">${e.t}</div>
+      </div>
+      <div class="chk ${on ? "on" : ""}" data-act="exdone" data-ex="${e.id}">&#10003;</div>
+    </div>`;
+  }).join("");
+  const total = w.exs.length;
+  const allDone = total > 0 && done === total;
+  return `<div class="card">
+    <div class="chead">
+      <div class="row grow" style="gap:10px">${wicon({ icon: w.icon })}
+        <div class="grow ${hasAlts ? "tap" : ""}" ${titleAct}>
+          <div style="font-size:19px;font-weight:650;${allDone ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(w.title)}</div>
+        </div>
+      </div>
+      ${ring(total ? done/total : 0)}
+    </div>${rows}</div>`;
+}
+
+function wkRowEdit(w){
+  const summ = w.type === "activity"
+    ? `${fmt(num(w.mins, 60))} min`
+    : `${(w.exercises || []).length} exercise${(w.exercises || []).length === 1 ? "" : "s"}`;
+  const daysTxt = w.date ? esc(w.date) : (w.days || []).length ? w.days.map(d2 => DAYS[d2 - 1][0]).join(" ") : "Unscheduled";
+  return `<div class="card" data-drag-row data-id="${w.id}" style="padding:13px 18px">
+    <div class="between">
+      <span class="dragh" data-drag="workouts">&#8801;</span>
+      ${wicon(w)}
+      <div class="grow tap" data-act="wkopen" data-w="${w.id}">
+        <div style="font-weight:650;font-size:17px">${esc(w.title)}</div>
+        <div class="tiny">${esc(cap1(wtypeOfW(w)))} &middot; ${daysTxt} &middot; ${summ}</div>
+      </div>
+      ${armed === "delwk:" + w.id
+        ? `<button class="ghost sm" data-act="delwk" data-w="${w.id}" style="color:var(--bad);border-color:rgba(255,95,87,.35)">Tap again</button>`
+        : `<button class="x" data-act="delwk" data-w="${w.id}" title="Delete">&times;</button>`}
+    </div>
+  </div>`;
+}
+
+function viewWorkout(){
+  const s = editing ? null : snapOf(sel);
+  const wks = workoutsFor(sel);
+  let html = weekStrip("workout");
+  if (s){
+    html += s.w.length ? s.w.map(wkCardHist).join("")
+      : `<div class="card">
+      <div class="between">
+        <div style="font-size:19px;font-weight:650">Rest day</div>
+        <span class="badge rest">Rest</span>
+      </div>
+    </div>`;
+  } else if (!wks.length){
+    html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
+      <div class="between">
+        <div style="font-size:19px;font-weight:650">Rest day</div>
+        <span class="badge rest">Rest</span>
+      </div>
+    </div>`;
+  } else {
+    html += wks.map(w => editing ? (wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w)) : wkCardView(w)).join("");
+  }
+  if (editing){
+    const unsched = state.workouts.filter(w => !w.date && !(w.days || []).length);
+    if (unsched.length) html += `<h2>Unscheduled &mdash; available in choosers</h2>` +
+      unsched.map(w => wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w)).join("");
+    html += `<button class="addbtn" data-act="addwk">+ Add workout</button>`;
+  }
+  html += `<button class="wide" data-act="rulestoggle">
+    <svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><path d="M4 18 9 9l4 5 3-4 4 8z"/></svg>
+    Autorules (${state.rules.length}) ${showRules ? "&#9652;" : "&#9662;"}</button>`;
+  if (showRules) html += `<div style="margin-top:14px">${viewRules()}</div>`;
+  return html;
+}
+
+function viewRules(){
+  const opts = sel2 => `<option value="all" ${sel2==="all"?"selected":""}>All exercises</option>` +
+    allExercises().map(e => `<option value="${e.id}" ${sel2===e.id?"selected":""}>${esc(e.name)} (${e.lbl})</option>`).join("");
+  const metricOpts = m => ["reps","weight","sets","mins"].map(x =>
+    `<option value="${x}" ${m===x?"selected":""}>${x==="weight"?"weight (kg)":x==="mins"?"minutes":x}</option>`).join("");
+  const w = weeksElapsed();
+  const rows = state.rules.map(r => {
+    const rd = ruleDelta(r, w);
+    const unit = r.metric === "weight" ? "kg" : r.metric === "mins" ? "min" : r.metric;
+    return `<div class="card">
+      <div class="between"><div class="grow tiny">Progression rule</div>
+        ${delBtn("delrule", r.id, `data-id="${r.id}"`)}</div>
+      <div style="margin-top:4px"><label>Applies to</label>
+        <select data-act="rulef" data-id="${r.id}" data-f="scope">${opts(r.scope)}</select></div>
+      <div class="f3" style="margin-top:10px">
+        <div><label>Increase</label><select data-act="rulef" data-id="${r.id}" data-f="metric">${metricOpts(r.metric)}</select></div>
+        <div><label>By</label><input inputmode="decimal" data-act="rulef" data-id="${r.id}" data-f="amount" value="${esc(r.amount)}"></div>
+        <div><label>Every N weeks</label><input inputmode="numeric" data-act="rulef" data-id="${r.id}" data-f="every" value="${esc(r.every)}"></div>
+      </div>
+      <div style="margin-top:10px"><label>Stop after total of (blank = never)</label>
+        <input inputmode="decimal" data-act="rulef" data-id="${r.id}" data-f="cap" value="${esc(r.cap ?? "")}"></div>
+      <div class="tiny" style="margin-top:10px">Right now: <b class="up">${rd.val>=0?"+":""}${fmt(rd.val)} ${unit}</b> &middot;
+        ${rd.capped ? "cap reached, no further change" : `next change in ${rd.weeksToNext} week${rd.weeksToNext>1?"s":""}`}</div>
+    </div>`;
+  }).join("");
+  return `${rows || `<div class="card muted">No rules yet.</div>`}
+    <div><button class="pri" data-act="addrule">+ Add rule</button></div>
+    <div class="tiny" style="margin-top:12px">Volume updates on Mondays. Rules stack: two rules on the same exercise both apply. Base values (in a day's edit mode) never change.</div>`;
+}
+
+function bigRing(endTxt){
+  const p = state.profile;
+  const total = Math.max(1, num(p.regimeDays, 90));
+  const de = daysElapsed();
+  const r = 63, C = 2 * Math.PI * r;
+  const seg = C / total;
+  const gap = Math.min(1.6, seg * 0.3);
+  const todayIso = iso(new Date());
+  const start = parseIso(p.anchor);
+  let arcs = "";
+  for (let i2 = 0; i2 < Math.min(de, total); i2++){
+    const d = new Date(start); d.setDate(d.getDate() + i2);
+    const ds = iso(d);
+    const f = dayFlags(ds);
+    let color = null;
+    const fails = (f.wPlanned && !f.wOk ? 1 : 0) + (f.nTracked && !f.nOk ? 1 : 0);
+    if (ds === todayIso){
+      const doneOne = (f.wPlanned && f.wOk) || (f.nTracked && f.nOk);
+      if (fails === 0 && (f.wPlanned || f.nTracked)) color = "var(--acc)";   // fully done -> green
+      else if (doneOne) color = "var(--warm)";                               // one of two done -> orange
+      else color = "#3a4656";                                               // nothing yet -> empty placeholder
+    } else {
+      color = fails === 0 ? "var(--acc)" : fails === 1 ? "var(--warm)" : "var(--bad)";
+    }
+    if (!color) continue;
+    arcs += `<circle cx="75" cy="75" r="${r}" stroke="${color}" stroke-width="10" fill="none"
+      stroke-dasharray="${(seg - gap).toFixed(2)} ${(C - seg + gap).toFixed(2)}"
+      stroke-dashoffset="${(-i2 * seg).toFixed(2)}" transform="rotate(-90 75 75)"/>`;
+  }
+  return `<svg class="bigring" viewBox="0 0 150 150">
+    <circle cx="75" cy="75" r="${r}" stroke="#1c232d" stroke-width="10" fill="none"/>
+    ${arcs}
+    <text x="75" y="76" text-anchor="middle" style="font-size:40px;font-weight:750;fill:var(--tx);letter-spacing:-1.5px">${Math.min(de, total)}</text>
+    <text x="75" y="97" text-anchor="middle" style="font-size:11.5px;fill:var(--dim)">of ${total} days</text>
+    <text x="75" y="114" text-anchor="middle" style="font-size:10px;fill:#57647a">${endTxt}</text>
+  </svg>`;
+}
+
+// US Navy tape method, male, cm. ±3-4% real-world error, so 1 decimal only.
+function tapeBF(p){
+  const h = num(p.heightCm, 0), w = num(p.waistCm, 0), n = num(p.neckCm, 0);
+  if (!(h > 0 && w > 0 && n > 0)) return { state: "empty" };
+  if (w <= n) return { state: "bad" };
+  const bf = Math.round((495 / (1.0324 - 0.19077 * Math.log10(w - n) + 0.15456 * Math.log10(h)) - 450) * 10) / 10;
+  return { state: bf >= 3 && bf <= 60 ? "ok" : "off", bf };
+}
+
+function targetsForm(){
+  const p = state.profile;
+  const tb = tapeBF(p);
+  return `
+  <div class="card">
+    <div class="between" style="margin-bottom:10px">
+      <div style="font-weight:650">Targets &amp; regime</div>
+      <button class="pri sm" data-act="edittgt">Done</button>
+    </div>
+    <div class="f2">
+      <div><label>Regime</label>
+        <select data-act="prof" data-f="mode">
+          ${["bulk","cut","maintain"].map(m => `<option value="${m}" ${p.mode===m?"selected":""}>${m[0].toUpperCase()+m.slice(1)}</option>`).join("")}
+        </select></div>
+      <div><label>Length, days</label><input inputmode="numeric" data-act="prof" data-f="regimeDays" value="${esc(p.regimeDays)}"></div>
+    </div>
+    <div class="f3" style="margin-top:10px">
+      <div><label>Weight start</label><input inputmode="decimal" data-act="prof" data-f="weightStart" value="${esc(p.weightStart)}"></div>
+      <div><label>Weight now</label><input inputmode="decimal" data-act="prof" data-f="weightNow" value="${esc(p.weightNow)}"></div>
+      <div><label>Weight target</label><input inputmode="decimal" data-act="prof" data-f="weightTarget" value="${esc(p.weightTarget)}"></div>
+    </div>
+    <div class="f3" style="margin-top:10px">
+      <div><label>Fat start %</label><input inputmode="decimal" data-act="prof" data-f="fatStart" value="${esc(p.fatStart)}"></div>
+      <div><label>Fat now %</label><input inputmode="decimal" data-act="prof" data-f="fatNow" value="${esc(p.fatNow)}"></div>
+      <div><label>Fat target %</label><input inputmode="decimal" data-act="prof" data-f="fatTarget" value="${esc(p.fatTarget)}"></div>
+    </div>
+    <div class="f3" style="margin-top:10px">
+      <div><label>Height cm</label><input inputmode="decimal" data-act="prof" data-f="heightCm" value="${esc(p.heightCm ?? "")}"></div>
+      <div><label>Waist cm</label><input inputmode="decimal" data-act="prof" data-f="waistCm" value="${esc(p.waistCm ?? "")}"></div>
+      <div><label>Neck cm</label><input inputmode="decimal" data-act="prof" data-f="neckCm" value="${esc(p.neckCm ?? "")}"></div>
+    </div>
+    <div class="tiny" style="margin-top:8px">${
+      tb.state === "bad" ? `<span style="color:var(--bad)">Waist must be larger than neck &mdash; check the tape.</span>`
+      : tb.state === "off" ? `<span style="color:var(--warm)">${fmt(tb.bf)}% looks off &mdash; re-measure. Tape horizontal: waist at navel, neck just below the larynx.</span>`
+      : tb.state === "ok" ? `Body fat from tape: <b class="up">${fmt(tb.bf)}%</b> &mdash; US Navy method, applied to Fat now.`
+      : `Fill height, waist and neck to auto-calculate Fat now (US Navy tape method). Waist at navel, neck just below the larynx.`
+    }</div>
+    <div class="between" style="margin-top:12px">
+      <span class="tiny">Day counter runs from ${esc(p.anchor)}.</span>
+      <button class="ghost sm" data-act="anchor">Restart from today</button>
+    </div>
+  </div>`;
+}
+
+function viewHome(){
+  const p = state.profile;
+  const total = num(p.regimeDays, 90), de = daysElapsed();
+  const end = parseIso(p.anchor); end.setDate(end.getDate() + total - 1);
+  const prog = (now, start, target) => (target === start) ? 1 : clamp((num(now)-num(start)) / (num(target)-num(start)), 0, 1);
+  const wp = prog(p.weightNow, p.weightStart, p.weightTarget);
+  const fp = prog(p.fatNow, p.fatStart, p.fatTarget);
+  if (editTargets) return targetsForm();
+  return `
+  <div class="card" style="padding:20px 18px">
+    <div class="trow">
+      <div class="tcol">
+        <div class="k">Weight</div>
+        <div class="tval">${fmt(num(p.weightNow))}<span class="tgoal"> &rarr; ${fmt(num(p.weightTarget))} kg</span></div>
+        <div class="bar" style="margin-top:11px"><i style="width:${(wp*100).toFixed(0)}%"></i></div>
+      </div>
+      <div class="tdiv"></div>
+      <div class="tcol">
+        <div class="k">Body fat</div>
+        <div class="tval">${fmt(num(p.fatNow))}<span class="tgoal"> &rarr; ${fmt(num(p.fatTarget))} %</span></div>
+        <div class="bar warm" style="margin-top:11px"><i style="width:${(fp*100).toFixed(0)}%"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="padding:20px 18px">
+    <div class="trow">
+      <div class="tcol">
+        <div class="k">Workout days</div>
+        <div class="tval">${daysDone("w")}<span class="tgoal"> done</span></div>
+      </div>
+      <div class="tdiv"></div>
+      <div class="tcol">
+        <div class="k">Nutrition days</div>
+        <div class="tval">${daysDone("n")}<span class="tgoal"> done</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="ringwrap">
+    ${bigRing("ends " + end.toLocaleDateString(undefined,{day:"numeric",month:"short"}))}
+  </div>`;
+}
+
+function photoMeta(p){
+  const a = parseIso(state.profile.anchor || p.date);
+  const dnum = Math.floor((parseIso(p.date) - a) / 864e5) + 1;
+  const lastVal = k => {
+    const m = [...(state.measurements || [])].filter(x => x.date <= p.date && x[k] != null && !isNaN(num(x[k], NaN)))
+      .sort((x, y) => x.date < y.date ? 1 : -1)[0];
+    return m ? num(m[k]) : null;
+  };
+  const w = lastVal("weight"), f = lastVal("fat");
+  const parts = [];
+  if (w != null) parts.push(`${fmt(w)} kg`);
+  if (f != null) parts.push(`${fmt(f)}% fat`);
+  return { day: dnum >= 1 ? `Day ${dnum}` : "", sub: parts.join(" &middot; ") };
+}
+
+function trendSvg(points, target, color, fromIso, toIso){
+  const W = 560, H = 230, L = 38, R = 16, T = 20, B = 34;
+  const ys = points.map(p => p.v);
+  let lo = Math.min(...ys), hi = Math.max(...ys);
+  if (target != null){ lo = Math.min(lo, target); hi = Math.max(hi, target); }
+  if (hi - lo < 1){ lo -= 0.6; hi += 0.6; }
+  const span = hi - lo;
+  const y0 = lo - span * 0.16, y1 = hi + span * 0.16;
+  const x0 = parseIso(fromIso).getTime(), x1 = parseIso(toIso).getTime();
+  const px = t => L + (W - L - R) * (x1 === x0 ? 0.5 : (t - x0) / (x1 - x0));
+  const py = v => T + (H - T - B) * (1 - (v - y0) / (y1 - y0));
+  const base = H - B;
+  const clampX = x => Math.max(L + 24, Math.min(W - R - 24, x));
+  const P = points.map(p => [px(parseIso(p.date).getTime()), py(p.v)]);
+  let d = P.length ? `M${P[0][0].toFixed(1)},${P[0][1].toFixed(1)}` : "";
+  for (let i = 0; i < P.length - 1; i++){
+    const a = P[Math.max(0, i - 1)], b = P[i], c = P[i + 1], e = P[Math.min(P.length - 1, i + 2)];
+    d += `C${(b[0] + (c[0] - a[0]) / 6).toFixed(1)},${(b[1] + (c[1] - a[1]) / 6).toFixed(1)} ${(c[0] - (e[0] - b[0]) / 6).toFixed(1)},${(c[1] - (e[1] - b[1]) / 6).toFixed(1)} ${c[0].toFixed(1)},${c[1].toFixed(1)}`;
+  }
+  const area = P.length > 1 ? `${d} L${P[P.length - 1][0].toFixed(1)},${base} L${P[0][0].toFixed(1)},${base} Z` : "";
+  const gx = px(x1), gy = target != null ? py(target) : 0;
+  const lastP = P.length ? P[P.length - 1] : null;
+  const todayT = parseIso(iso(new Date())).getTime();
+  const sel = gSel != null ? points.findIndex(p => p.date === gSel) : -1;
+  let tip = "";
+  if (sel >= 0){
+    const label = `${fmt(points[sel].v)} \u00b7 ${pdate(points[sel].date)}`;
+    const tw = label.length * 6.8 + 20;
+    const tx = Math.max(L + tw / 2, Math.min(W - R - tw / 2, P[sel][0]));
+    const ty = Math.max(P[sel][1] - 38, 4);
+    tip = `<g>
+      <rect x="${(tx - tw / 2).toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="25" rx="9" fill="var(--card2)" stroke="var(--line)"/>
+      <text x="${tx.toFixed(1)}" y="${(ty + 17).toFixed(1)}" text-anchor="middle" style="font-size:12.5px;font-weight:650;fill:var(--tx)">${label}</text>
+    </g>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+    <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity=".22"/>
+      <stop offset="1" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <line x1="${L}" y1="${py(hi).toFixed(1)}" x2="${W - R}" y2="${py(hi).toFixed(1)}" stroke="#212a35" stroke-width="1" stroke-dasharray="3 6"/>
+    <line x1="${L}" y1="${py(lo).toFixed(1)}" x2="${W - R}" y2="${py(lo).toFixed(1)}" stroke="#212a35" stroke-width="1" stroke-dasharray="3 6"/>
+    ${todayT > x0 && todayT < x1 ? `<line x1="${px(todayT).toFixed(1)}" y1="${T}" x2="${px(todayT).toFixed(1)}" y2="${base}" stroke="#3a4656" stroke-width="1" stroke-dasharray="2 5"/>` : ""}
+    <text x="${L - 7}" y="${(py(hi) + 4).toFixed(1)}" text-anchor="end" style="font-size:11px;fill:var(--dim)">${fmt(hi)}</text>
+    <text x="${L - 7}" y="${(py(lo) + 4).toFixed(1)}" text-anchor="end" style="font-size:11px;fill:var(--dim)">${fmt(lo)}</text>
+    ${area ? `<path d="${area}" fill="url(#tg)"/>` : ""}
+    ${target != null && lastP ? `<line x1="${lastP[0].toFixed(1)}" y1="${lastP[1].toFixed(1)}" x2="${gx.toFixed(1)}" y2="${gy.toFixed(1)}" stroke="${color}" stroke-width="1.5" stroke-dasharray="2 6" opacity=".5"/>` : ""}
+    ${P.length > 1 ? `<path d="${d}" fill="none" stroke="${color}" stroke-width="7" opacity=".15" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ""}
+    ${points.map((p, i) => {
+      const x = P[i][0].toFixed(1), y = P[i][1].toFixed(1);
+      return `${gSel === p.date ? `<circle cx="${x}" cy="${y}" r="8" fill="none" stroke="${color}" stroke-width="1.5" opacity=".55"/>` : ""}
+      <circle cx="${x}" cy="${y}" r="3.6" fill="${color}" stroke="var(--bg)" stroke-width="1.6"/>
+      <circle cx="${x}" cy="${y}" r="15" fill="transparent" class="tap" data-act="gpt" data-d="${p.date}"/>`;
+    }).join("")}
+    ${target != null ? `<circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="4.5" fill="var(--bg)" stroke="${color}" stroke-width="2.5"/>
+      <text x="${clampX(gx).toFixed(1)}" y="${Math.max(gy - 11, 12).toFixed(1)}" text-anchor="middle" style="font-size:13.5px;font-weight:750;fill:${color}">${fmt(target)}</text>` : ""}
+    ${tip}
+    <line x1="${L}" y1="${base}" x2="${W - R}" y2="${base}" stroke="#2b3544" stroke-width="1.5"/>
+    ${[0, 0.25, 0.5, 0.75, 1].map(f => {
+      const x = L + (W - L - R) * f;
+      const dd = new Date(x0 + (x1 - x0) * f);
+      return `<line x1="${x.toFixed(1)}" y1="${base}" x2="${x.toFixed(1)}" y2="${base + 4}" stroke="#2b3544" stroke-width="1.5"/>
+        <text x="${x.toFixed(1)}" y="${H - 9}" text-anchor="${f === 0 ? "start" : f === 1 ? "end" : "middle"}" style="font-size:11px;fill:var(--dim)">${pdate(iso(dd))}</text>`;
+    }).join("")}
+  </svg>`;
+}
+
+// reverse a cheat-filled meal slot: drop the link and un-log that cheat pick
+function unXmeal(mid){
+  const link = (state.nutrition.xmeal[sel] || {})[mid];
+  if (!link) return;
+  delete state.nutrition.xmeal[sel][mid];
+  const lg = state.nutrition.exlog[sel] || {};
+  if (lg[link.x]){ lg[link.x]--; if (!lg[link.x]) delete lg[link.x]; }
+  const pk = (state.nutrition.xpicks[sel] || {})[link.x];
+  if (pk){ const i = pk.lastIndexOf(link.label); if (i >= 0) pk.splice(i, 1); }
+}
+
+// current weight/fat = the latest log that has that metric
+function syncNow(){
+  ["weight", "fat"].forEach(k => {
+    const withK = (state.measurements || []).filter(m => m[k] != null && !isNaN(num(m[k], NaN)))
+      .sort((a, b) => a.date < b.date ? -1 : 1);
+    if (withK.length) state.profile[k === "weight" ? "weightNow" : "fatNow"] = num(withK[withK.length - 1][k]);
+  });
+}
+
+// the chart period IS the regime window set on the Home page
+function gPeriod(){
+  const anchor = state.profile.anchor || iso(new Date());
+  const e = parseIso(anchor);
+  e.setDate(e.getDate() + Math.max(1, num(state.profile.regimeDays, 90)) - 1);
+  return { from: anchor, to: iso(e) };
+}
+
+function trendCard(){
+  const isW = gMetric === "weight";
+  const color = isW ? "var(--acc)" : "var(--warm)";
+  // the chart shows the regime window; every log inside is a point
+  const { from: pFrom, to: pTo } = gPeriod();
+  const points = [...(state.measurements || [])]
+    .filter(m => m[gMetric] != null && !isNaN(num(m[gMetric], NaN)) && m.date >= pFrom && m.date <= pTo)
+    .sort((a, b) => a.date < b.date ? -1 : 1)
+    .map(m => ({ date: m.date, v: num(m[gMetric]) }));
+  const tRaw = state.profile[isW ? "weightTarget" : "fatTarget"];
+  const target = tRaw == null || String(tRaw).trim() === "" ? null : num(tRaw);
+  return `<div class="card" style="margin-top:14px">
+    <div class="chead">
+      ${secTitle("trend", "Trend")}
+      <div class="seg">
+        <button class="${isW ? "on" : ""}" data-act="gmetric" data-t="weight">Weight</button>
+        <button class="${isW ? "" : "on warm"}" data-act="gmetric" data-t="fat">Fat</button>
+      </div>
+    </div>
+    ${points.length ? (() => {
+      const lastP = points[points.length - 1], firstP = points[0];
+      const delta = lastP.v - firstP.v;
+      const toward = target != null ? Math.abs(lastP.v - target) <= Math.abs(firstP.v - target) : delta <= 0;
+      const dcol = delta === 0 ? "var(--dim)" : toward ? "var(--acc)" : "var(--warm)";
+      const arrow = delta > 0 ? "&#9650;" : delta < 0 ? "&#9660;" : "&#8212;";
+      const unit = isW ? "kg" : "%";
+      return `<div class="between" style="margin-bottom:4px">
+        <div class="row" style="gap:10px">
+          <span style="font-size:28px;font-weight:750;letter-spacing:-.6px">${fmt(lastP.v)}<span style="font-size:14px;font-weight:500;color:var(--dim)"> ${unit}</span></span>
+          ${points.length > 1 ? `<span class="chip" style="font-size:12.5px;padding:4px 10px;color:${dcol}">${arrow} ${fmt(Math.abs(delta))}</span>` : ""}
+        </div>
+        ${target != null ? `<span class="tiny">${fmt(Math.abs(lastP.v - target))} ${unit} to goal</span>` : ""}
+      </div>`;
+    })() : ""}
+    ${points.length ? trendSvg(points, target, color, pFrom, pTo)
+      : `<div class="tiny" style="margin:8px 0 4px">No logs in this range &mdash; add one below.</div>`}
+    ${points.length ? `<div style="margin-top:10px">${[...points].reverse().map(p => gEdit === p.date
+      ? `<div style="background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0">
+          <div class="between">
+            <label style="margin-bottom:0">Edit log</label>
+            <div class="row" style="gap:2px">
+              ${delBtn("gldel", p.date, "")}
+              <button class="okbtn" data-act="glupd" title="Done">&#10003;</button>
+            </div>
+          </div>
+          <div class="f2" style="margin-top:10px">
+            <div><label>Date</label><input type="date" id="gedate" value="${p.date}"></div>
+            <div><label>${isW ? "Weight, kg" : "Fat, %"}</label><input inputmode="decimal" id="geval" value="${esc(p.v)}"></div>
+          </div>
+        </div>`
+      : `<div class="hist tap" data-act="gledit" data-d="${p.date}" style="${gSel === p.date ? "background:rgba(195,245,60,.07);margin:0 -18px;padding-left:18px;padding-right:18px" : ""}"><span class="muted">${pdate(p.date)}</span><b>${fmt(p.v)} ${isW ? "kg" : "%"}</b></div>`).join("")}</div>` : ""}
+    ${gAdd ? `<div style="margin-top:12px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div class="between">
+        <label style="margin-bottom:0">New ${isW ? "weight" : "fat"} log</label>
+        <div class="row" style="gap:2px">
+          <button class="x" data-act="glcancel" title="Cancel">&times;</button>
+          <button class="okbtn" data-act="glsave" title="Save">&#10003;</button>
+        </div>
+      </div>
+      <div class="f2" style="margin-top:10px">
+        <div><label>Date</label><input type="date" id="gldate" value="${iso(new Date())}"></div>
+        <div><label>${isW ? "Weight, kg" : "Fat, %"}</label><input inputmode="decimal" id="glval" placeholder="${isW ? "79.2" : "17.4"}"></div>
+      </div>
+    </div>` : `<button class="addbtn" data-act="gladd" style="padding:13px;font-size:15px;margin:14px 0 0">+ Add log</button>`}
+  </div>`;
+}
+
+function viewPhotos(){
+  let html = "";
+  if (!photos.length){
+    html += `<div class="card" style="text-align:center;padding:46px 18px">
+      <span class="wicon" style="width:46px;height:46px;display:inline-block;margin-bottom:10px"><svg viewBox="0 0 24 24">${NICONS.photos}</svg></span>
+      <div style="font-size:19px;font-weight:650">No photos yet</div>
+      <div class="tiny" style="margin-top:5px">Add the first one &mdash; the app stamps the date for you.</div>
+    </div>`;
+  } else {
+    html += `<div class="pcar">${photos.map(p => {
+      const mm = photoMeta(p);
+      const isArmed = armed === "pdel:" + p.id;
+      return `<div class="pslide">
+        <div class="pframe" data-act="popen" data-p="${p.id}">
+          <img src="${p.url}" alt="">
+          <div class="pgrad"></div>
+          <button class="pxdel ${isArmed ? "armed" : ""}" data-act="pdel" data-p="${p.id}">${isArmed ? "Tap again" : "&times;"}</button>
+          <div class="pmeta">
+            ${mm.day ? `<div class="pday">${mm.day}</div>` : ""}
+            <div class="pbig">${parseIso(p.date).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}</div>
+            ${mm.sub ? `<div class="psub">${mm.sub}</div>` : ""}
+          </div>
+        </div>
+      </div>`;
+    }).join("")}</div>`;
+    if (photos.length > 1) html += photos.length <= 10
+      ? `<div class="pdots" id="pdots">${photos.map((_, i) => `<i class="${i === 0 ? "on" : ""}"></i>`).join("")}</div>`
+      : `<div class="pcount" id="pcount">1 / ${photos.length}</div>`;
+  }
+  html += `<button class="addbtn" data-act="paddphoto" style="margin-top:16px">+ Add photo</button>
+    <input type="file" accept="image/*" multiple data-act="pfile" style="display:none">`;
+  html += trendCard();
+  return html;
+}
+
+function xring(c, limit, color){
+  const r = 20, cc = 2*Math.PI*r;
+  const pct = limit > 0 ? Math.min(c / limit, 1) : 0;
+  return `<svg viewBox="0 0 48 48" style="width:54px;height:54px;display:block">
+    <circle cx="24" cy="24" r="${r}" stroke="#222a34" stroke-width="4.5" fill="none"/>
+    <circle cx="24" cy="24" r="${r}" stroke="${color}" stroke-width="4.5" fill="none" stroke-linecap="round"
+      stroke-dasharray="${cc}" stroke-dashoffset="${(cc*(1-pct)).toFixed(1)}" transform="rotate(-90 24 24)"/>
+    <text x="24" y="29.5" text-anchor="middle" style="font-size:15px;font-weight:700;fill:var(--tx)">${c}</text>
+  </svg>`;
+}
+
+/* ---------- progress photos: stored in IndexedDB (localStorage is too small for images) ---------- */
+let photos = [];                                  // { id, date, url } newest first, in-memory mirror
+function ptx(mode, fn){
+  return new Promise((res, rej) => {
+    const q = indexedDB.open("workout.photos", 1);
+    q.onupgradeneeded = () => q.result.createObjectStore("photos", { keyPath: "id" });
+    q.onerror = () => rej(q.error);
+    q.onsuccess = () => {
+      const db = q.result, t = db.transaction("photos", mode);
+      const out = fn(t.objectStore("photos"));
+      t.oncomplete = () => { db.close(); res(out && out.result); };
+      t.onerror = () => { db.close(); rej(t.error); };
+    };
+  });
+}
+function loadPhotos(){
+  return ptx("readonly", st => st.getAll()).then(rows => {
+    photos = (rows || []).sort((a, b) => (b.ts || 0) - (a.ts || 0))
+      .map(r => ({ id: r.id, date: r.date, url: URL.createObjectURL(r.blob) }));
+  }).catch(() => {});
+}
+function addPhoto(file){
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      c.toBlob(blob => {
+        if (!blob) return res();
+        const rec = { id: uid(), date: iso(new Date()), ts: Date.now(), blob };
+        ptx("readwrite", st => st.put(rec)).then(() => {
+          photos.unshift({ id: rec.id, date: rec.date, url: URL.createObjectURL(blob) });
+          res();
+        }).catch(res);
+      }, "image/jpeg", 0.85);
+    };
+    img.onerror = () => res();
+    img.src = URL.createObjectURL(file);
+  });
+}
+function delPhoto(id){
+  return ptx("readwrite", st => st.delete(id)).then(() => {
+    const p = photos.find(x => x.id === id);
+    if (p) URL.revokeObjectURL(p.url);
+    photos = photos.filter(x => x.id !== id);
+  }).catch(() => {});
+}
+const pdate = (d, long) => parseIso(d).toLocaleDateString(undefined,
+  long ? { weekday: "short", day: "numeric", month: "short", year: "numeric" } : { day: "numeric", month: "short" });
+
+const NICONS = {
+  trend:  '<path d="m3 17 6-6 4 4 8-8"/><path d="M14.5 7H21v6.5"/>',
+  photos: '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7 10 4.5h4L15.5 7"/><circle cx="12" cy="13.2" r="3.4"/>',
+  habits: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5.5"/>',
+  menu:   '<path d="M7 3v7M4.5 3v4a2.5 2.5 0 0 0 5 0V3M7 10v11"/><path d="M17.5 3c-1.8 1.2-2.7 3.2-2.7 5.7 0 2 .9 2.8 2.7 2.8V21"/>',
+  water:  '<path d="M12 3c3.4 4.1 5.8 7.1 5.8 10a5.8 5.8 0 0 1-11.6 0C6.2 10.1 8.6 7.1 12 3z"/>',
+  limits: '<circle cx="12" cy="12" r="9"/><path d="M9 9.5h.01M14.8 8.8h.01M10 14.5h.01M14.3 13.6h.01"/>'
+};
+const nicon = k => `<span class="wicon" style="width:21px;height:21px">&#8203;<svg viewBox="0 0 24 24">${NICONS[k]}</svg></span>`;
+const secTitle = (k, label, done) => `<div class="row" style="gap:9px">${nicon(k)}<div style="font-size:19px;font-weight:650;${done ? "color:var(--dim);text-decoration:line-through" : ""}">${label}</div></div>`;
+
+function weekCount(exId, dateIso){
+  const mon = mondayOf(parseIso(dateIso || sel));
+  let n = 0;
+  for (let i = 0; i < 7; i++){
+    const d = new Date(mon); d.setDate(d.getDate() + i);
+    n += (state.nutrition.exlog[iso(d)] || {})[exId] || 0;
+  }
+  return n;
+}
+
+function weekPicks(exId){
+  const mon = mondayOf(parseIso(sel));
+  const out = [];
+  for (let i = 0; i < 7; i++){
+    const d = new Date(mon); d.setDate(d.getDate() + i);
+    out.push(...(((state.nutrition.xpicks)[iso(d)] || {})[exId] || []));
+  }
+  return out;
+}
+
+/* ---------- daily snapshots: each day is judged by the plan that was in effect that day ---------- */
+const snapEx = e => {
+  const r = resolve(e);
+  return { id: e.id, name: e.name, t: r.time ? `${fmt(r.mins)} min` : `${r.sets} &times; ${fmt(r.reps)}${r.weight ? ` @ ${fmt(r.weight)} kg` : ""}` };
+};
+const snapWk = (w, ds) => {
+  const eff = effOf(w, ds);
+  return { id: w.id, title: eff.title, icon: iconOfW(eff), exs: unitsOf(eff).map(snapEx) };
+};
+function daySnap(ds){
+  const di = dayIdx(parseIso(ds));
+  return {
+    w: workoutsFor(ds).map(w => snapWk(w, ds)),
+    habits: state.nutrition.rules.map(r => ({ id: r.id, name: r.name, kind: r.kind, target: r.target, unit: r.unit })),
+    menu: state.nutrition.menu.filter(m => !m.days || m.days.includes(di)).map(m => ({ id: m.id, mtype: m.mtype })),
+    cheats: state.nutrition.exclusions.map(x => ({ id: x.id, name: x.name, limit: num(x.limit, 0) }))
+  };
+}
+function snapDays(){
+  state.snaps = state.snaps || {};
+  const today = iso(new Date());
+  const start = parseIso(state.profile.anchor || today);
+  if (!isNaN(start)) for (let d = new Date(start), i = 0; iso(d) < today && i < 400; d.setDate(d.getDate() + 1), i++){
+    if (!state.snaps[iso(d)]) state.snaps[iso(d)] = daySnap(iso(d));   // missed day: freeze with the config we have now
+  }
+  state.snaps[today] = daySnap(today);                                 // today always mirrors the current config
+  const cut = new Date(); cut.setDate(cut.getDate() - 400);
+  const cutIso = iso(cut);
+  for (const k in state.snaps) if (k < cutIso) delete state.snaps[k];
+}
+const snapOf = ds => ds < iso(new Date()) ? (state.snaps || {})[ds] : null;
+function resnapWorkout(ds, wid){
+  const s = (state.snaps || {})[ds]; if (!s) return;
+  const w = state.workouts.find(x => x.id === wid); if (!w) return;
+  const i = s.w.findIndex(x => x.id === wid);
+  if (i >= 0) s.w[i] = snapWk(w, ds); else s.w.push(snapWk(w, ds));
+}
+
+const weekOkFor = ds => {
+  const cs = snapOf(ds)?.cheats || state.nutrition.exclusions;
+  return cs.every(x => weekCount(x.id, ds) <= num(x.limit, 0));
+};
+
+function habitDone(h, ds){
+  const v = (state.nutrition.logs[ds] || {})[h.id];
+  return h.kind === "count" ? num(v, 0) >= num(h.target, 1) : !!v;
+}
+
+function dayFlags(ds){
+  const s = snapOf(ds);
+  const exIds = s ? s.w.flatMap(w => w.exs.map(e => e.id)) : exercisesFor(ds).map(e => e.id);
+  const wPlanned = exIds.length > 0;
+  const wOk = !wPlanned || exIds.every(id => exDone(ds, { id }));
+  const habs = s ? s.habits : state.nutrition.rules;
+  const nTracked = habs.length > 0;
+  const nOk = !nTracked || (habs.every(h => habitDone(h, ds)) && weekOkFor(ds));
+  return { wPlanned, wOk, nTracked, nOk };
+}
+
+function daysDone(kind){
+  let n = 0;
+  const start = parseIso(state.profile.anchor);
+  const today = startOfDay(new Date());
+  for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)){
+    const f = dayFlags(iso(d));
+    if (kind === "w" ? (f.wPlanned && f.wOk) : (f.nTracked && f.nOk)) n++;
+  }
+  return n;
+}
+
+// food amounts are stored as one string ("200 g") but edited as number + unit dropdown
+const parseAmt = amt => {
+  const mm = String(amt || "").trim().match(/^([\d.,]*)\s*(.*)$/);
+  return { qty: (mm[1] || "").trim(), unit: (mm[2] || "").trim() || "g" };
+};
+const joinAmt = p => String(p.qty).trim() ? `${String(p.qty).trim()} ${p.unit}` : "";
+const UNITS = ["g", "pcs", "ml"];
+const MTYPES = ["breakfast", "lunch", "dinner", "snack"];
+const cap1 = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const mtypeOf = m => m.mtype || "snack";
+// a menu item has no title: it IS its type (legacy snap entries may still carry a name)
+const mLabel = m => m.mtype ? cap1(m.mtype) : (m.name || cap1(mtypeOf(m)));
+const foodRow = (it, acts) => {
+  const p = parseAmt(it.amt);
+  const units = [...UNITS]; if (p.unit && !units.includes(p.unit)) units.push(p.unit);
+  return `<div class="row" style="margin-top:8px;gap:6px">
+    <input class="grow" data-act="${acts.name}" ${acts.data} value="${esc(it.name)}">
+    <input style="width:64px;flex:none;text-align:center" inputmode="decimal" placeholder="200" data-act="${acts.qty}" ${acts.data} value="${esc(p.qty)}">
+    <select style="width:80px;flex:none" data-act="${acts.unit}" ${acts.data}>
+      ${units.map(u => `<option value="${esc(u)}" ${u === p.unit ? "selected" : ""}>${esc(u)}</option>`).join("")}
+    </select>
+    ${delBtn(acts.del, acts.key, acts.data)}
+  </div>`;
+};
+// every destructive control is tap-twice: first tap arms, second deletes
+const delBtn = (act, key, data) => armed === `${act}:${key}`
+  ? `<button class="ghost sm" data-act="${act}" ${data} style="color:var(--bad);border-color:rgba(255,95,87,.35);flex:none;padding:8px 12px;font-size:13px">Tap again</button>`
+  : `<button class="x" data-act="${act}" ${data} title="Remove">&times;</button>`;
+const amtLabel = it => esc(it.name) + (it.amt ? ` &middot; ${esc(it.amt)}` : "");
+
+function menuItemEdit(m){
+  if (exOpen !== m.id){
+    const daysTxt = !m.days ? "Every day" : m.days.length ? m.days.map(d => DAYS[d-1][0]).join(" ") : "Unscheduled";
+    const foods = (m.items || []).length;
+    return `<div class="exedit" data-drag-row data-id="${m.id}">
+      <div class="between">
+        <span class="dragh" data-drag="menu">&#8801;</span>
+        <div class="grow tap" data-act="exopen" data-ex="${m.id}">
+          <div style="font-weight:600">${mLabel(m)}</div>
+          <div class="tiny">${daysTxt}${foods ? ` &middot; ${foods} food${foods > 1 ? "s" : ""}` : ""}</div>
+        </div>
+        ${delBtn("nmdel", m.id, `data-m="${m.id}"`)}
+      </div>
+    </div>`;
+  }
+  const days = m.days || [1,2,3,4,5,6,7];
+  const foods = (m.items || []).map((it, i) =>
+    foodRow(it, { name: "nmif", qty: "nmiqty", unit: "nmiunit", del: "nmidel", key: `${m.id}:${i}`, data: `data-m="${m.id}" data-i="${i}"` })).join("");
+  return `<div class="exedit" style="background:rgba(195,245,60,.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:12px">
+    <div class="between">
+      <label style="margin-bottom:0">${mLabel(m)}</label>
+      <div class="row" style="gap:2px">
+        ${delBtn("nmdel", m.id, `data-m="${m.id}"`)}
+        <button class="okbtn" data-act="exopen" data-ex="${m.id}" title="Done">&#10003;</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:9px;gap:7px;flex-wrap:wrap">
+      ${MTYPES.map(t => `<button class="sm ${mtypeOf(m) === t ? "pri" : "ghost"}" data-act="nmtype" data-m="${m.id}" data-t="${t}">${cap1(t)}</button>`).join("")}
+    </div>
+    <div class="row" style="margin-top:10px;gap:6px">
+      ${DAYS.map((d,i) => `<button class="daychip ${days.includes(i+1) ? "on" : ""}" data-act="nmday" data-m="${m.id}" data-d="${i+1}">${d[0]}</button>`).join("")}
+    </div>
+    <div style="margin-top:12px"><label>Foods in this meal</label>${foods || ""}</div>
+    <div style="margin-top:9px"><button class="ghost sm" data-act="nmiadd" data-m="${m.id}">+ Add food</button></div>
+    <div class="tiny" style="margin-top:10px">Same-type items appear as swap choices when you tap a meal's name on the day view. Leave all day chips off to keep an item chooser-only.</div>
+  </div>`;
+}
+
+function viewNutrition(){
+  const home = !!state.homeDays[sel];
+  const di = dayIdx(parseIso(sel));
+  const s = editN ? null : snapOf(sel);
+  const rules = s ? s.habits.map(h => { const live = state.nutrition.rules.find(r => r.id === h.id);
+                   return live ? { ...h, name: live.name } : h; })
+                 : state.nutrition.rules;
+  const menu = s ? s.menu.map(m0 => state.nutrition.menu.find(m => m.id === m0.id) || m0)
+                 : state.nutrition.menu.filter(m => !m.days || m.days.includes(di));
+  const excl = s ? s.cheats.map(c => { const live = state.nutrition.exclusions.find(x => x.id === c.id);
+                   return live ? { ...live, limit: c.limit } : { ...c, alts: [] }; })
+                 : state.nutrition.exclusions;
+  const l = state.nutrition.logs[sel] || {};
+  const mdone = menu.filter(m => l[m.id]).length;
+  let html = weekStrip("nutrition");
+
+  const presets = `<div class="row" style="flex-wrap:wrap;gap:8px">
+      ${state.nutrition.presets.map(pr => `<span class="pchip">
+        <button data-act="npreset" data-id="${pr.id}">${esc(pr.name)}</button>
+        ${armed === "npresetdel:" + pr.id ? `<button class="pdel" data-act="npresetdel" data-id="${pr.id}" style="color:var(--bad);font-size:13px;font-weight:650">Tap again</button>` : `<button class="pdel" data-act="npresetdel" data-id="${pr.id}" title="Delete preset">&times;</button>`}
+      </span>`).join("")}
+    </div>`;
+  const mEdit = m => menuItemEdit(m);
+
+  if (editN === true){
+    const rrows = rules.map(r => {
+      if (exOpen !== r.id){
+        return `<div class="exedit" data-drag-row data-id="${r.id}">
+          <div class="between">
+            <span class="dragh" data-drag="habits">&#8801;</span>
+            <div class="grow tap" data-act="exopen" data-ex="${r.id}">
+              <div style="font-weight:600">${esc(r.name)}</div>
+              <div class="tiny">${r.kind === "count" ? `${fmt(num(r.target, 1))}/day${r.unit ? ` ${esc(r.unit)}` : ""}` : "Checkbox"}</div>
+            </div>
+            ${delBtn("ndel", r.id, `data-r="${r.id}"`)}
+          </div>
+        </div>`;
+      }
+      return `<div class="exedit" style="background:rgba(195,245,60,.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:12px">
+        <div class="row">
+          <input class="grow" data-act="nrulef" data-r="${r.id}" value="${esc(r.name)}">
+          ${delBtn("ndel", r.id, `data-r="${r.id}"`)}
+          <button class="okbtn" data-act="exopen" data-ex="${r.id}" title="Done">&#10003;</button>
+        </div>
+        <div class="row" style="margin-top:9px;gap:7px">
+          <button class="sm ${r.kind === "count" ? "ghost" : "pri"}" data-act="nrkind" data-r="${r.id}" data-t="check">Checkbox</button>
+          <button class="sm ${r.kind === "count" ? "pri" : "ghost"}" data-act="nrkind" data-r="${r.id}" data-t="count">Counter</button>
+        </div>
+        ${r.kind === "count" ? `<div class="f2" style="margin-top:9px">
+          <div><label>Target per day</label><input inputmode="numeric" data-act="nrtarget" data-r="${r.id}" value="${esc(r.target ?? 1)}"></div>
+          <div><label>Unit (optional)</label><input data-act="nrunit" data-r="${r.id}" value="${esc(r.unit || "")}"></div>
+        </div>` : ""}
+      </div>`;
+    }).join("");
+    html += `<div class="card">
+      <div style="margin-bottom:8px">${secTitle("habits", "Habits")}</div>
+      ${rrows || `<div class="muted">No habits yet &mdash; add one, or use a preset below.</div>`}
+      <div style="margin-top:10px"><button class="ghost sm" data-act="naddrule">+ Add habit</button></div>
+    </div>`;
+
+    const mrows = state.nutrition.menu.map(mEdit).join("");
+    html += `<div class="card">
+      <div style="margin-bottom:8px">${secTitle("menu", "Menu")}</div>
+      ${mrows || `<div class="muted">No menu items yet.</div>`}
+      <div style="margin-top:10px"><button class="ghost" data-act="nmadd">+ Add menu item</button></div>
+    </div>`;
+
+    const xrows = excl.map(x => {
+      if (exOpen !== x.id){
+        return `<div class="exedit" data-drag-row data-id="${x.id}">
+          <div class="between">
+            <span class="dragh" data-drag="limits">&#8801;</span>
+            <div class="grow tap" data-act="exopen" data-ex="${x.id}">
+              <div style="font-weight:600">${esc(x.name)}</div>
+              <div class="tiny">${fmt(num(x.limit,0))}&times; per week${x.xcat ? ` &middot; replaces ${x.xcat === "meal" ? "meals" : "snacks"}` : ""}${(x.alts || []).length ? ` &middot; ${x.alts.length} option${x.alts.length > 1 ? "s" : ""}` : ""}</div>
+            </div>
+            ${delBtn("xdel", x.id, `data-x="${x.id}"`)}
+          </div>
+        </div>`;
+      }
+      return `<div class="exedit" style="background:rgba(195,245,60,.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:12px">
+        <div class="row">
+          <input class="grow" data-act="xf" data-x="${x.id}" value="${esc(x.name)}">
+          ${delBtn("xdel", x.id, `data-x="${x.id}"`)}
+          <button class="okbtn" data-act="exopen" data-ex="${x.id}" title="Done">&#10003;</button>
+        </div>
+        <div class="f3" style="margin-top:9px">
+          <div><label>Times per week</label><input inputmode="numeric" data-act="xlimit" data-x="${x.id}" value="${esc(x.limit)}"></div>
+        </div>
+        <div style="margin-top:10px"><label>Replaces</label>
+          <div class="row" style="gap:7px">
+            ${[["meal","Meals"],["snack","Snacks"],["","Nothing"]].map(([k, lb]) =>
+              `<button class="sm ${(x.xcat || "") === k ? "pri" : "ghost"}" data-act="xcat" data-x="${x.id}" data-t="${k}">${lb}</button>`).join("")}
+          </div>
+        </div>
+        <div style="margin-top:10px"><label>Options</label>
+          ${(x.alts || []).map((it, i) =>
+            foodRow(it, { name: "xaf", qty: "xaq", unit: "xau", del: "xadel", key: `${x.id}:${i}`, data: `data-x="${x.id}" data-i="${i}"` })).join("")}
+          <div style="margin-top:8px"><button class="ghost sm" data-act="xaadd" data-x="${x.id}">+ Add option</button></div>
+        </div>
+      </div>`;
+    }).join("");
+    html += `<div class="card">
+      <div style="margin-bottom:8px">${secTitle("limits", "Cheats")}</div>
+      ${xrows || `<div class="muted">No cheats yet.</div>`}
+      <div style="margin-top:10px"><button class="ghost sm" data-act="xadd">+ Add cheat</button></div>
+    </div>`;
+    html += `<div class="card">
+      <div style="font-weight:650">Presets</div>
+      <div class="tiny" style="margin:4px 0 12px">A preset is a snapshot of the whole setup: habits, menu, cheats. Tap to apply, &times; to delete.</div>
+      ${presets}
+      <div style="margin-top:12px"><button class="ghost sm" data-act="npresetsave">Save current setup as preset</button></div>
+    </div>`;
+    html += `<button class="wide" data-act="nreset" style="color:var(--bad);border-color:rgba(255,95,87,.35)">${armed === "nreset" ? "Tap again to wipe everything" : "Reset nutrition data"}</button>`;
+    return html;
+  }
+
+  {
+    // legacy snapshots (pre-universal-habits) stored water separately as wgoal
+    const hl = s && s.wgoal != null
+      ? [...rules, { id: "water", name: "Water", kind: "count", target: s.wgoal, unit: "glasses" }]
+      : rules;
+    const hdone = hl.filter(h => habitDone(h, sel)).length;
+    const hrow = h => {
+      if (h.kind === "count"){
+        const t = num(h.target, 1), c = num(l[h.id], 0), on = c >= t;
+        return `<div class="ex between">
+          <div class="grow tap" data-act="hplus" data-r="${h.id}">
+            <div class="name" style="${on ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(h.name)}</div>
+            <div class="target">${c}/${fmt(t)}${h.unit ? ` ${esc(h.unit)}` : ""}</div>
+          </div>
+          <div class="row" style="gap:4px">
+            <button class="x" data-act="hminus" data-r="${h.id}" title="Undo one">&minus;</button>
+            <button class="tap" style="background:none;border:0;padding:0" data-act="hplus" data-r="${h.id}">${xring(c, t, on ? "var(--acc)" : "#38bdf8")}</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="ex between tap" data-act="ndone" data-r="${h.id}">
+        <div class="grow"><div class="name" style="${l[h.id] ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(h.name)}</div></div>
+        <div class="chk ${l[h.id] ? "on" : ""}">&#10003;</div>
+      </div>`;
+    };
+    html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
+      <div class="chead">
+        ${secTitle("habits", "Habits", hl.length > 0 && hdone >= hl.length)}
+        ${hl.length ? ring(hdone / hl.length) : ""}
+      </div>
+      ${hl.map(hrow).join("")}
+      ${hl.length ? "" : `<div class="tiny" style="margin:12px 0 10px">No habits yet &mdash; start with a preset:</div>${presets}`}
+    </div>`;
+  }
+
+  let shownMenu = menu;
+  if (editN && editN !== true){
+    const em = state.nutrition.menu.find(m => m.id === editN);
+    if (em && !shownMenu.includes(em)) shownMenu = [...shownMenu, em];
+  }
+  const mopts = state.nutrition.mopts[sel] || {};
+  const mrow = m => {
+    const link = (state.nutrition.xmeal[sel] || {})[m.id];
+    const pickId = mopts[m.id];
+    const chosenObj = pickId ? state.nutrition.menu.find(o => o.id === pickId && o.id !== m.id) : null;
+    const title = mLabel(m);
+    const foodsList = chosenObj ? (chosenObj.items || []) : (m.items || []);
+    const foods = link
+      ? `<div class="target" style="color:var(--warm)"><div>&bull;&nbsp; ${link.label}</div></div>`
+      : foodsList.length
+        ? `<div class="target">${foodsList.map(it => `<div>&bull;&nbsp; ${esc(it.name)}${it.amt ? ` &middot; ${esc(it.amt)}` : ""}</div>`).join("")}</div>` : "";
+    const canChoose = state.nutrition.menu.some(o => o.id !== m.id && mtypeOf(o) === mtypeOf(m)) || state.nutrition.exclusions.length > 0;
+    return `<div class="ex between">
+      <div class="grow tap" data-act="${canChoose ? "nmchoose" : "ndone"}" data-m="${m.id}" data-r="${m.id}">
+        <div class="name" style="${l[m.id] ? "color:var(--dim);text-decoration:line-through" : ""}">${title}</div>
+        ${foods}
+      </div>
+      <div class="chk ${l[m.id] ? "on" : ""}" ${link && l[m.id] ? 'style="background:var(--warm);border-color:var(--warm)"' : ""} data-act="ndone" data-r="${m.id}">&#10003;</div>
+    </div>`;
+  };
+  html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
+    <div class="chead">
+      ${secTitle("menu", "Menu", menu.length > 0 && mdone >= menu.length)}
+      ${menu.length ? ring(mdone / menu.length) : ""}
+    </div>
+    ${shownMenu.map(m => editN === m.id ? mEdit(m) : mrow(m)).join("") || `<div class="muted" style="margin-top:10px">No menu items for this day.</div>`}
+  </div>`;
+
+  if (excl.length){
+    const xrow = x => {
+      const c = weekCount(x.id), over = c > num(x.limit, 0);
+      const todays = ((state.nutrition.xpicks[sel] || {})[x.id]) || [];
+      const doneToday = (((state.nutrition.exlog[sel] || {})[x.id]) || 0) > 0;
+      return `<div class="ex between">
+        <div class="grow tap" data-act="xchoose" data-x="${x.id}">
+          <div class="name" style="${doneToday ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(x.name)}</div>
+          <div class="target" style="${over ? "color:var(--bad)" : ""}">${c}/${fmt(num(x.limit, 0))} this week${over ? " &middot; over limit" : ""}</div>
+          ${todays.length ? `<div class="target">${todays.reduce((gs, t) => {
+            const g = gs.find(y => y.t === t);
+            if (g) g.n++; else gs.push({ t, n: 1 });
+            return gs;
+          }, []).map(g => `<div>&bull;&nbsp; ${esc(g.t)} (${g.n})</div>`).join("")}</div>` : ""}
+        </div>
+        <div class="row" style="gap:4px">
+          <button class="x" data-act="xminus" data-x="${x.id}" title="Undo one">&minus;</button>
+          <button class="tap" style="background:none;border:0;padding:0" data-act="xplus" data-x="${x.id}">${xring(c, num(x.limit, 0), over ? "var(--bad)" : "var(--warm)")}</button>
+        </div>
+      </div>`;
+    };
+    const xused = excl.reduce((s, x) => s + weekCount(x.id), 0);
+    const xcap = excl.reduce((s, x) => s + num(x.limit, 0), 0);
+    const xover = excl.some(x => weekCount(x.id) > num(x.limit, 0));
+    html += `<div class="card">
+      <div class="chead">${secTitle("limits", "Cheats")}${ring(xcap ? Math.min(xused / xcap, 1) : 0, xover ? "var(--bad)" : "var(--warm)")}</div>
+      ${excl.map(xrow).join("")}
+    </div>`;
+  }
+
+  return html;
+}
+
+/* ---------- shell ---------- */
+const TABS = [
+  { id:"home",      label:"Home",      icon:'<path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/>' },
+  { id:"workout",   label:"Workout",   icon:'<path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/>' },
+  { id:"nutrition", label:"Nutrition", icon:'<path d="M15 3c-1.8 0-3 1.4-3 3"/><path d="M12 6c-4-1.8-8 1-8 6 0 4 3 9 6 9 1 0 1.3-.6 2-.6s1 .6 2 .6c3 0 6-5 6-9 0-5-4-7.8-8-6z"/>' },
+  { id:"photos",    label:"Progress",  icon:'<path d="m3 17 6-6 4 4 8-8"/><path d="M14.5 7H21v6.5"/>' }
+];
+const VIEWS = { home:viewHome, workout:viewWorkout, nutrition:viewNutrition, photos:viewPhotos };
+const HEAD = {
+  home:      () => ({ t: "Home", s: "" }),
+  workout:   () => ({ t: sel === iso(new Date()) ? "Today" : DAYS[dayIdx(parseIso(sel))-1], s: "" }),
+  nutrition: () => ({ t: "Nutrition", s: "" }),
+  photos:    () => ({ t: "Progress", s: "" })
+};
+
+function render(){
+  const h = HEAD[tab]();
+  const title = document.getElementById("hTitle");
+  if (tab === "home"){
+    const modeLabel = { bulk:"Bulk", cut:"Cut", maintain:"Maintain" }[state.profile.mode] || state.profile.mode;
+    title.innerHTML = `<span class="badge big ${esc(state.profile.mode)}">${esc(modeLabel)}</span>`;
+  } else {
+    title.textContent = h.t;
+  }
+  const sub = document.getElementById("hSub");
+  sub.textContent = h.s; sub.style.display = h.s ? "" : "none";
+  const pencil = (act, on) => `<button class="iconbtn ${on ? "on" : ""}" data-act="${act}" title="Edit">
+    <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>`;
+  document.getElementById("hRight").innerHTML =
+    tab === "workout" ? pencil("edit", editing)
+    : tab === "nutrition" ? pencil("editn", editN)
+    : tab === "home" ? pencil("edittgt", editTargets)
+    : "";
+  const pcar0 = document.querySelector("#view .pcar");
+  const pscroll = pcar0 ? pcar0.scrollLeft : null;
+  document.getElementById("view").innerHTML = VIEWS[tab]();
+  const pcar1 = document.querySelector("#view .pcar");
+  if (pcar1){
+    if (pscroll != null) pcar1.scrollLeft = pscroll;
+    pcar1.onscroll = () => {
+      const first = pcar1.firstElementChild;
+      const w = first ? first.getBoundingClientRect().width + 12 : 1;
+      const i = Math.max(0, Math.min(photos.length - 1, Math.round(pcar1.scrollLeft / w)));
+      const dots = document.getElementById("pdots");
+      if (dots) [...dots.children].forEach((d, j) => d.classList.toggle("on", j === i));
+      const cnt = document.getElementById("pcount");
+      if (cnt) cnt.textContent = `${i + 1} / ${photos.length}`;
+    };
+    pcar1.onscroll();
+  }
+  const sroot = document.getElementById("sheetRoot");
+  if (sheet){
+    let title = "", content = "", foot = `<button data-act="shcancel">Close</button>`;
+    if (sheet.kind === "pick"){
+      const m = state.nutrition.menu.find(x => x.id === sheet.mid) || { name: "", alts: [] };
+      const cur = (state.nutrition.mopts[sel] || {})[m.id] || "";
+      title = `Choose ${mLabel(m)}`;
+      const itemsLbl = list => (list || []).map(amtLabel).join(" &middot; ");
+      const optRow = (id, label, sub, on) => `<div class="opt ${on ? "on" : ""} tap" data-act="pickopt" data-id="${id}">
+          <div class="grow"><div class="oname">${label}</div>${sub ? `<div class="target" style="margin-top:2px">${sub}</div>` : ""}</div>
+          <div class="ck">&#10003;</div>
+        </div>`;
+      const own = optRow("", itemsLbl(m.items) || mLabel(m), "", cur === "");
+      // other menu items of the same type (swap the whole slot, e.g. Wednesday's lunch on a Tuesday)
+      const others = state.nutrition.menu
+        .filter(o => o.id !== m.id && mtypeOf(o) === mtypeOf(m))
+        .map(o => optRow(o.id, itemsLbl(o.items) || mLabel(o), "", cur === o.id)).join("");
+      const wantCat = mtypeOf(m) === "snack" ? "snack" : "meal";
+      const cheats = state.nutrition.exclusions.filter(x => x.xcat === wantCat).flatMap(x =>
+        ((x.alts || []).length ? x.alts.map(o => amtLabel(o)) : [esc(x.name)]).map(lbl =>
+          `<div class="opt tap" data-act="xmeal" data-m="${m.id}" data-x="${x.id}" data-v="${lbl}">
+            <div class="grow"><div class="oname" style="color:var(--warm)">${lbl}</div></div>
+            <div class="ck" style="color:var(--dim)">&#43;</div>
+          </div>`)).join("");
+      content = own + (others ? `<div class="tiny" style="margin:12px 0 2px">Other ${mtypeOf(m) === "lunch" ? "lunches" : esc(mtypeOf(m)) + "s"}</div>${others}` : "")
+        + (cheats ? `<div class="tiny" style="margin:12px 0 2px">Cheat instead</div>${cheats}` : "");
+      foot = `<button data-act="shcancel">Cancel</button>`;
+    } else if (sheet.kind === "xpick"){
+      const x = state.nutrition.exclusions.find(y => y.id === sheet.xid) || { name: "", alts: [] };
+      title = `Choose ${esc(x.name)}`;
+      content = (x.alts || []).map(o => `<div class="opt tap" data-act="xpickopt" data-v="${amtLabel(o)}">
+          <div class="grow"><div class="oname">${amtLabel(o)}</div></div>
+          <div class="ck" style="color:var(--dim)">&#43;</div>
+        </div>`).join("");
+      foot = `<button data-act="shcancel">Cancel</button>`;
+    } else if (sheet.kind === "wpick"){
+      const w = state.workouts.find(x => x.id === sheet.wid) || {};
+      const curId = (state.wopts[sel] || {})[w.id] || w.id;
+      title = `Choose ${esc(w.title || "")}`;
+      const wRow = o => {
+        const summ = o.type === "activity" ? `${fmt(num(o.mins, 0))} min` : `${(o.exercises || []).length} exercise${(o.exercises || []).length === 1 ? "" : "s"}`;
+        return `<div class="opt ${curId === o.id ? "on" : ""} tap" data-act="wpickopt" data-id="${o.id}">
+          <div class="grow"><div class="oname">${esc(o.title)}</div><div class="target" style="margin-top:2px">${summ}</div></div>
+          <div class="ck">&#10003;</div>
+        </div>`;
+      };
+      const others = state.workouts.filter(o => o.id !== w.id && wtypeOfW(o) === wtypeOfW(w));
+      content = wRow(w) + (others.length
+        ? `<div class="tiny" style="margin:12px 0 2px">Other ${esc(wtypeOfW(w))} workouts</div>${others.map(wRow).join("")}` : "");
+      foot = `<button data-act="shcancel">Cancel</button>`;
+    } else if (sheet.kind === "photo"){
+      const p = photos.find(x => x.id === sheet.pid);
+      title = p ? pdate(p.date, true) : "Photo";
+      content = p ? `<img src="${p.url}" style="width:100%;border-radius:14px;display:block">` : "";
+      foot = `<button class="ghost" data-act="pdel" data-p="${sheet.pid}" style="color:var(--bad)">${armed === "pdel:" + sheet.pid ? "Tap again to delete" : "Delete"}</button>
+        <button class="pri" data-act="shcancel">Close</button>`;
+    }
+    sroot.innerHTML = `<div class="overlay" data-act="shcancel"></div>
+      <div class="sheet${sheetNew ? "" : " noanim"}">
+        <div class="shead">${title}</div>
+        <div class="sbody">${content}</div>
+        <div class="sfoot">${foot}</div>
+      </div>`;
+    document.body.style.overflow = "hidden";
+    sheetNew = false;
+  } else {
+    sroot.innerHTML = "";
+    document.body.style.overflow = "";
+  }
+  const editAct = tab === "workout" && editing ? "edit"
+    : tab === "nutrition" && editN ? "editn"
+    : tab === "home" && editTargets ? "edittgt" : null;
+  document.getElementById("fabRoot").innerHTML = editAct && !sheet
+    ? `<button class="fab" data-act="${editAct}">Done</button>` : "";
+  document.getElementById("nav").innerHTML = TABS.map(t =>
+    `<button class="${t.id===tab?"on":""}" data-act="tab" data-tab="${t.id}">
+      <svg viewBox="0 0 24 24">${t.icon}</svg>${t.label}</button>`).join("");
+}
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const a = el.dataset.act;
+  const ARMED_ACTS = ["nreset", "delwk", "pdel", "nmdel", "ndel", "xdel", "delex", "nmidel", "xadel", "gldel", "npresetdel", "delrule"];
+  if (armed && !ARMED_ACTS.includes(a)) armed = null;
+
+  if (a === "gmetric"){ gMetric = el.dataset.t; gAdd = false; gSel = null; gEdit = null; render(); return; }
+  if (a === "gpt"){ gSel = gSel === el.dataset.d ? null : el.dataset.d; render(); return; }
+  if (a === "gledit"){ gEdit = el.dataset.d; gAdd = false; render(); return; }
+  if (a === "glupd"){
+    const nd = (document.getElementById("gedate") || {}).value;
+    const nv = num((document.getElementById("geval") || {}).value, NaN);
+    if (!nd || isNaN(nv)) return;
+    const src = state.measurements.find(x => x.date === gEdit);
+    if (src){
+      if (nd === gEdit) src[gMetric] = nv;
+      else {
+        delete src[gMetric];
+        const other = gMetric === "weight" ? "fat" : "weight";
+        if (src[other] == null) state.measurements = state.measurements.filter(x => x !== src);
+        let dst = state.measurements.find(x => x.date === nd);
+        if (!dst){ dst = { date: nd }; state.measurements.push(dst); }
+        dst[gMetric] = nv;
+      }
+      syncNow();
+    }
+    gEdit = null; gSel = null; save(); render(); return;
+  }
+  if (a === "gldel"){
+    const k = "gldel:" + (gEdit);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    const m = state.measurements.find(x => x.date === gEdit);
+    if (m){
+      delete m[gMetric];
+      const other = gMetric === "weight" ? "fat" : "weight";
+      if (m[other] == null) state.measurements = state.measurements.filter(x => x !== m);
+      syncNow();
+    }
+    gEdit = null; gSel = null; save(); render(); return;
+  }
+  if (a === "gladd"){ gAdd = true; render(); return; }
+  if (a === "glcancel"){ gAdd = false; render(); return; }
+  if (a === "glsave"){
+    const d = (document.getElementById("gldate") || {}).value;
+    const v = num((document.getElementById("glval") || {}).value, NaN);
+    if (!d || isNaN(v)) return;
+    const ms = state.measurements;
+    let m = ms.find(x => x.date === d);
+    if (!m){ m = { date: d }; ms.push(m); }   // only the logged metric — never fabricate the other one
+    m[gMetric] = v;
+    syncNow();
+    gAdd = false; save(); render(); return;
+  }
+  if (a === "paddphoto"){ const f = document.querySelector('input[data-act="pfile"]'); if (f) f.click(); return; }
+  if (a === "popen"){ sheetNew = true; sheet = { kind: "photo", pid: el.dataset.p }; render(); return; }
+  if (a === "pdel"){
+    const id = el.dataset.p;
+    if (armed !== "pdel:" + id){ armed = "pdel:" + id; render(); return; }
+    armed = null;
+    delPhoto(id).then(() => { sheet = null; render(); });
+    return;
+  }
+
+  if (a === "tab"){ tab = el.dataset.tab; editing = false; editTargets = false; editN = false; showRules = false; wtAdd = null; wkOpen = null; sheet = null; render(); window.scrollTo(0,0); return; }
+  if (a === "rulestoggle"){ showRules = !showRules; render(); return; }
+  if (a === "pick"){ sel = el.dataset.date; editing = false; sheet = null; render(); return; }
+  if (a === "shcancel"){ sheet = null; exOpen = null; render(); return; }
+  if (a === "wshift"){ weekOffset += +el.dataset.d; render(); return; }
+  if (a === "edit"){ editing = editing ? false : true; exOpen = null; wkOpen = null; render(); return; }
+  if (a === "wkopen"){ wkOpen = wkOpen === el.dataset.w ? null : el.dataset.w; exOpen = null; render(); return; }
+  if (a === "exopen"){ exOpen = exOpen === el.dataset.ex ? null : el.dataset.ex; render(); return; }
+  if (a === "addwk"){
+    const nw = { id: uid(), title: "New workout", exercises: [], wtype: "strength", days: [dayIdx(parseIso(sel))] };
+    state.workouts.push(nw); wkOpen = nw.id; exOpen = null;
+    save(); render(); return;
+  }
+  if (a === "wchoose"){
+    sheetNew = true;
+    sheet = { kind: "wpick", wid: el.dataset.w };
+    render(); return;
+  }
+  if (a === "wpickopt"){
+    if (!sheet || sheet.kind !== "wpick") return;
+    const wid = sheet.wid;
+    const wo = state.wopts[sel] || (state.wopts[sel] = {});
+    if (el.dataset.id === wid) delete wo[wid]; else wo[wid] = el.dataset.id;
+    resnapWorkout(sel, wid);
+    sheet = null; save(); render(); return;
+  }
+  if (a === "wkwtype"){
+    const w = findWk(el.dataset.w); if (!w) return;
+    w.wtype = el.dataset.t;
+    save(); render(); return;
+  }
+  if (a === "wtadd"){ wtAdd = el.dataset.w; wtAddIcon = null; wtAddName = ""; render(); return; }
+  if (a === "wtcancel"){ wtAdd = null; wtAddIcon = null; wtAddName = ""; render(); return; }
+  if (a === "wtselicon"){
+    const inp = document.getElementById("wtname"); if (inp) wtAddName = inp.value;
+    wtAddIcon = el.dataset.i; render(); return;
+  }
+  if (a === "wtsave"){
+    const w = findWk(el.dataset.w); if (!w) return;
+    const inp = document.getElementById("wtname");
+    const name = ((inp && inp.value) || wtAddName || "").trim().toLowerCase();
+    if (!name) return;
+    if (!state.wtypes.some(t => t.name === name)) state.wtypes.push({ name, icon: wtAddIcon || "zap" });
+    w.wtype = name;
+    wtAdd = null; wtAddIcon = null; wtAddName = "";
+    save(); render(); return;
+  }
+  if (a === "delwk"){
+    const id = el.dataset.w;
+    if (armed !== "delwk:" + id){ armed = "delwk:" + id; render(); return; }
+    armed = null;
+    state.backup = state.backup.filter(x => x.id !== id);
+    state.workouts = state.workouts.filter(x => x.id !== id);
+    if (editing === id) editing = false;
+    save(); render(); return;
+  }
+  if (a === "edittgt"){ editTargets = !editTargets; render(); return; }
+  if (a === "editn"){ editN = !editN; exOpen = null; render(); return; }
+  if (a === "ndone"){
+    const id = el.dataset.r;
+    const l = state.nutrition.logs[sel] || (state.nutrition.logs[sel] = {});
+    if (l[id] && (state.nutrition.xmeal[sel] || {})[id]){
+      unXmeal(id);                       // unchecking a cheat-filled slot reverses the cheat log too
+      l[id] = false;
+    } else l[id] = !l[id];
+    save(); render(); return;
+  }
+  if (a === "hplus" || a === "hminus"){
+    const id = el.dataset.r;
+    const lg = state.nutrition.logs[sel] || (state.nutrition.logs[sel] = {});
+    lg[id] = Math.max(0, num(lg[id], 0) + (a === "hplus" ? 1 : -1));
+    if (!lg[id]) delete lg[id];
+    save(); render(); return;
+  }
+  if (a === "nrkind"){
+    const r = state.nutrition.rules.find(x => x.id === el.dataset.r); if (!r) return;
+    if (el.dataset.t === "count"){ r.kind = "count"; if (r.target == null) r.target = 5; }
+    else r.kind = "check";
+    save(); render(); return;
+  }
+  if (a === "xchoose"){
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
+    if ((x.alts || []).length){
+      sheetNew = true; sheet = { kind: "xpick", xid: x.id };
+      render(); return;
+    }
+    const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
+    lg[x.id] = (lg[x.id] || 0) + 1;
+    save(); render(); return;
+  }
+  if (a === "xplus"){
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
+    const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
+    lg[x.id] = (lg[x.id] || 0) + 1;
+    save(); render(); return;
+  }
+  if (a === "xpickopt"){
+    if (!sheet || sheet.kind !== "xpick") return;
+    const id = sheet.xid;
+    const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
+    lg[id] = (lg[id] || 0) + 1;
+    if (el.dataset.v){
+      const pk = state.nutrition.xpicks[sel] || (state.nutrition.xpicks[sel] = {});
+      (pk[id] = pk[id] || []).push(el.dataset.v);
+    }
+    sheet = null; save(); render(); return;
+  }
+  if (a === "xminus"){
+    const id = el.dataset.x;
+    const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
+    lg[id] = Math.max(0, (lg[id] || 0) - 1);
+    if (!lg[id]) delete lg[id];
+    const pk = (state.nutrition.xpicks[sel] || {})[id];
+    if (pk && pk.length) pk.pop();
+    save(); render(); return;
+  }
+  if (a === "xcat"){
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
+    if (el.dataset.t) x.xcat = el.dataset.t; else delete x.xcat;
+    save(); render(); return;
+  }
+  if (a === "xadd"){
+    const nx = { id: uid(), name: "New cheat", limit: 1, alts: [] };
+    state.nutrition.exclusions.push(nx); exOpen = nx.id;
+    save(); render(); return;
+  }
+  if (a === "xdel"){
+    const k = "xdel:" + (el.dataset.x);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    state.nutrition.exclusions = state.nutrition.exclusions.filter(x => x.id !== el.dataset.x);
+    save(); render(); return;
+  }
+  if (a === "xaadd"){
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
+    x.alts = x.alts || []; x.alts.push({ name: "New option", amt: "" });
+    save(); render(); return;
+  }
+  if (a === "xadel"){
+    const k = "xadel:" + (`${el.dataset.x}:${el.dataset.i}`);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
+    x.alts.splice(+el.dataset.i, 1);
+    save(); render(); return;
+  }
+  if (a === "nmadd"){
+    const nm = { id: uid(), mtype: "snack", items: [] };
+    state.nutrition.menu.push(nm); exOpen = nm.id;
+    save(); render(); return;
+  }
+  if (a === "nmdel"){
+    const k = "nmdel:" + (el.dataset.m);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    state.nutrition.menu = state.nutrition.menu.filter(m => m.id !== el.dataset.m);
+    if (editN === el.dataset.m) editN = false;
+    save(); render(); return;
+  }
+  if (a === "nmchoose"){
+    sheetNew = true;
+    sheet = { kind: "pick", mid: el.dataset.m };
+    render(); return;
+  }
+  if (a === "pickopt"){
+    if (!sheet || sheet.kind !== "pick") return;
+    unXmeal(sheet.mid);
+    const mo = state.nutrition.mopts[sel] || (state.nutrition.mopts[sel] = {});
+    if (!el.dataset.id) delete mo[sheet.mid]; else mo[sheet.mid] = el.dataset.id;
+    sheet = null; save(); render(); return;
+  }
+  if (a === "xmeal"){
+    if (!sheet || sheet.kind !== "pick") return;
+    const mid = el.dataset.m, xid = el.dataset.x, lbl = el.dataset.v;
+    unXmeal(mid);
+    const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
+    lg[xid] = (lg[xid] || 0) + 1;
+    const pk = state.nutrition.xpicks[sel] || (state.nutrition.xpicks[sel] = {});
+    (pk[xid] = pk[xid] || []).push(lbl);
+    (state.nutrition.xmeal[sel] = state.nutrition.xmeal[sel] || {})[mid] = { x: xid, label: lbl };
+    if (state.nutrition.mopts[sel]) delete state.nutrition.mopts[sel][mid];
+    (state.nutrition.logs[sel] = state.nutrition.logs[sel] || {})[mid] = true;
+    sheet = null; save(); render(); return;
+  }
+  if (a === "naddrule"){
+    const nh = { id: uid(), name: "New habit", kind: "check" };
+    state.nutrition.rules.push(nh); exOpen = nh.id;
+    editN = editN || true; save(); render(); return;
+  }
+  if (a === "ndel"){
+    const k = "ndel:" + (el.dataset.r);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    state.nutrition.rules = state.nutrition.rules.filter(r => r.id !== el.dataset.r);
+    save(); render(); return;
+  }
+  if (a === "nreset"){
+    if (armed !== "nreset"){ armed = "nreset"; render(); return; }
+    armed = null;
+    const presets = state.nutrition.presets;
+    state.nutrition = { rules: [{ id: "water", name: "Water", kind: "count", target: 5, unit: "glasses" }],
+      logs: {}, presets, menu: [], exclusions: [], exlog: {}, mopts: {}, xpicks: {}, xmeal: {} };
+    editN = false;
+    save(); render(); return;
+  }
+  if (a === "nmiadd"){
+    const m = findMenu(el.dataset.m); if (!m) return;
+    m.items = m.items || []; m.items.push({ name: "New food", amt: "" });
+    save(); render(); return;
+  }
+  if (a === "nmidel"){
+    const k = "nmidel:" + (`${el.dataset.m}:${el.dataset.i}`);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    const m = findMenu(el.dataset.m); if (!m) return;
+    m.items.splice(+el.dataset.i, 1);
+    save(); render(); return;
+  }
+  if (a === "nmtype"){
+    const m = findMenu(el.dataset.m); if (!m) return;
+    m.mtype = el.dataset.t;
+    save(); render(); return;
+  }
+  if (a === "nmday"){
+    const m = findMenu(el.dataset.m); if (!m) return;
+    const d = +el.dataset.d;
+    m.days = m.days || [1,2,3,4,5,6,7];
+    if (m.days.includes(d)) m.days = m.days.filter(x => x !== d);
+    else m.days = [...m.days, d].sort();
+    if (m.days.length === 7) delete m.days;
+    save(); render(); return;
+  }
+  if (a === "npreset"){
+    const pr = state.nutrition.presets.find(x => x.id === el.dataset.id); if (!pr) return;
+    const n2 = state.nutrition;
+    const cloneFood = it => typeof it === "string" ? { name: it, amt: "" } : { name: it.name, amt: it.amt || "" };
+    if (pr.full){
+      n2.rules = (pr.rules || []).map(x => typeof x === "string"
+        ? { id: uid(), name: x, kind: "check" }
+        : { id: uid(), name: x.name, kind: x.kind || "check", target: x.target, unit: x.unit });
+      const inferT = name => { const nn = (name || "").toLowerCase();
+        return nn.includes("breakfast") ? "breakfast" : nn.includes("lunch") ? "lunch" : nn.includes("dinner") ? "dinner" : "snack"; };
+      n2.menu = [];
+      (pr.menu || []).forEach(m => {
+        n2.menu.push({ id: uid(), mtype: m.mtype || inferT(m.name), items: (m.items || []).map(cloneFood),
+          days: m.days ? [...m.days] : undefined });
+        (m.alts || []).forEach(a => n2.menu.push({ id: uid(),
+          name: (a.name && a.name !== m.name) ? a.name : (((a.items || [])[0] || {}).name || m.name + " 2"),
+          mtype: m.mtype || inferT(m.name), days: [], items: (a.items || []).map(cloneFood) }));
+      });
+      if (pr.exclusions) n2.exclusions = pr.exclusions.map(x => ({ id: uid(), name: x.name, limit: x.limit, xcat: x.xcat, alts: (x.alts || []).map(cloneFood) }));
+      else if (pr.cheat) n2.exclusions = [{ id: uid(), name: "Cheat", limit: num(pr.cheat.limit, 3), alts: (pr.cheat.options || []).map(cloneFood) }];
+      if (pr.water != null && !n2.rules.some(r => r.kind === "count" && r.name === "Water"))
+        n2.rules.push({ id: uid(), name: "Water", kind: "count", target: num(pr.water, 5), unit: "glasses" });   // legacy presets stored water separately
+    } else {
+      for (const name of pr.rules){
+        if (!n2.rules.some(r => r.name === name))
+          n2.rules.push({ id: uid(), name, kind: "check" });
+      }
+    }
+    save(); render(); return;
+  }
+  if (a === "npresetdel"){
+    const k = "npresetdel:" + (el.dataset.id);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    state.nutrition.presets = state.nutrition.presets.filter(x => x.id !== el.dataset.id);
+    save(); render(); return;
+  }
+  if (a === "npresetsave"){
+    const n2 = state.nutrition;
+    let name = null;
+    try { name = window.prompt("Preset name:"); } catch(e){}
+    if (name === null || name === undefined || !String(name).trim())
+      name = "My preset " + (n2.presets.length + 1);
+    const copyFood = it => ({ name: it.name, amt: it.amt || "" });
+    n2.presets.push({
+      id: uid(), name: String(name).trim(), full: true,
+      rules: n2.rules.map(r => ({ name: r.name, kind: r.kind, target: r.target, unit: r.unit })),
+      menu: n2.menu.map(m => ({ mtype: m.mtype, items: (m.items || []).map(copyFood), days: m.days ? [...m.days] : undefined })),
+      exclusions: n2.exclusions.map(x => ({ name: x.name, limit: x.limit, xcat: x.xcat, alts: (x.alts || []).map(copyFood) }))
+    });
+    save(); render(); return;
+  }
+
+  if (a === "exdone"){
+    toggleDone(sel, { id: el.dataset.ex }); save(); render(); return;
+  }
+  if (a === "wkday"){
+    const w = findWk(el.dataset.w); if (!w) return;
+    const d = +el.dataset.d;
+    w.days = w.days || [dayIdx(parseIso(sel))];
+    if (w.days.includes(d)) w.days = w.days.filter(x => x !== d);
+    else w.days = [...w.days, d].sort();
+    save(); render(); return;
+  }
+  if (a === "wkrecur"){
+    const w = findWk(el.dataset.w); if (!w) return;
+    if (el.dataset.t === "once"){ w.date = sel; }
+    else { delete w.date; if (!w.days || !w.days.length) w.days = [dayIdx(parseIso(sel))]; }
+    save(); render(); return;
+  }
+  if (a === "wktype"){
+    const w = findWk(el.dataset.w); if (!w) return;
+    if (el.dataset.t === "activity"){ w.type = "activity"; if (w.mins == null) w.mins = 60; }
+    else { delete w.type; if (!w.exercises) w.exercises = []; }
+    save(); render(); return;
+  }
+  if (a === "extype"){
+    const w = findWk(el.dataset.w); if (!w) return;
+    const ex = w.exercises.find(x => x.id === el.dataset.ex); if (!ex) return;
+    if (el.dataset.t === "time"){ ex.type = "time"; if (ex.mins == null) ex.mins = 30; }
+    else { delete ex.type; if (ex.sets == null) ex.sets = 3; if (ex.reps == null) ex.reps = 10; if (ex.weight == null) ex.weight = 0; }
+    save(); render(); return;
+  }
+  if (a === "addex"){
+    const w = findWk(el.dataset.w); if (!w) return;
+    const nx = { id: uid(), name: "New exercise", sets: 3, reps: 10, weight: 0 };
+    w.exercises.push(nx); exOpen = nx.id;
+    save(); render(); return;
+  }
+  if (a === "delex"){
+    const k = "delex:" + (el.dataset.ex);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    const w = findWk(el.dataset.w); if (!w) return;
+    w.exercises = w.exercises.filter(x => x.id !== el.dataset.ex);
+    save(); render(); return;
+  }
+  if (a === "addrule"){
+    state.rules.push({ id: uid(), scope: "all", metric: "weight", amount: 1, every: 1, cap: "" });
+    save(); render(); return;
+  }
+  if (a === "delrule"){
+    const k = "delrule:" + (el.dataset.id);
+    if (armed !== k){ armed = k; render(); return; }
+    armed = null;
+    state.rules = state.rules.filter(r => r.id !== el.dataset.id);
+    save(); render(); return;
+  }
+  if (a === "anchor"){
+    state.profile.anchor = iso(new Date()); save(); render(); return;
+  }
+});
+
+document.addEventListener("change", e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const a = el.dataset.act, v = el.value;
+
+  if (a === "pfile"){
+    const files = [...(el.files || [])];
+    el.value = "";
+    if (files.length) Promise.all(files.map(addPhoto)).then(() => render());
+    return;
+  }
+  if (a === "nrulef"){ const r = state.nutrition.rules.find(x => x.id === el.dataset.r); if (r){ r.name = v; save(); render(); } return; }
+  if (a === "nrtarget"){ const r = state.nutrition.rules.find(x => x.id === el.dataset.r); if (r){ r.target = Math.max(1, num(v, r.target)); save(); render(); } return; }
+  if (a === "nrunit"){ const r = state.nutrition.rules.find(x => x.id === el.dataset.r); if (r){ r.unit = v; save(); render(); } return; }
+  if (a === "nmif"){ const m = findMenu(el.dataset.m); if (m && m.items && m.items[+el.dataset.i]){ m.items[+el.dataset.i].name = v; save(); render(); } return; }
+  if (a === "nmiqty" || a === "nmiunit"){
+    const m = findMenu(el.dataset.m); const it = m && m.items && m.items[+el.dataset.i]; if (!it) return;
+    const p = parseAmt(it.amt);
+    if (a === "nmiqty") p.qty = v; else p.unit = v;
+    it.amt = joinAmt(p); save(); render(); return;
+  }
+  if (a === "xf"){ const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (x){ x.name = v; save(); render(); } return; }
+  if (a === "xaf"){ const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (x && x.alts && x.alts[+el.dataset.i]){ x.alts[+el.dataset.i].name = v; save(); render(); } return; }
+  if (a === "xaq" || a === "xau"){
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x);
+    const it = x && x.alts && x.alts[+el.dataset.i]; if (!it) return;
+    const p = parseAmt(it.amt);
+    if (a === "xaq") p.qty = v; else p.unit = v;
+    it.amt = joinAmt(p); save(); render(); return;
+  }
+  if (a === "xlimit"){ const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (x){ x.limit = Math.max(0, num(v, x.limit)); save(); render(); } return; }
+  if (a === "wktitle"){ const w = findWk(el.dataset.w); if (w){ w.title = v; save(); render(); } return; }
+  if (a === "wkmins"){ const w = findWk(el.dataset.w); if (w){ w.mins = num(v, w.mins); save(); render(); } return; }
+  if (a === "exf"){
+    const w = findWk(el.dataset.w); if (!w) return;
+    const ex = w.exercises.find(x => x.id === el.dataset.ex); if (!ex) return;
+    const f = el.dataset.f;
+    ex[f] = f === "name" ? v : num(v, ex[f]);
+    save(); render(); return;
+  }
+  if (a === "rulef"){
+    const r = state.rules.find(x => x.id === el.dataset.id); if (!r) return;
+    const f = el.dataset.f;
+    r[f] = (f === "scope" || f === "metric") ? v : (f === "cap" && v.trim() === "" ? "" : num(v, 0));
+    save(); render(); return;
+  }
+  if (a === "prof"){
+    const f = el.dataset.f;
+    const tape = f === "heightCm" || f === "waistCm" || f === "neckCm";
+    state.profile[f] = f === "mode" ? v : (tape && v.trim() === "") ? "" : num(v, num(state.profile[f]));
+    let touchedNow = f === "weightNow" || f === "fatNow";
+    if (tape){
+      const tb = tapeBF(state.profile);
+      if (tb.state === "ok"){ state.profile.fatNow = tb.bf; touchedNow = true; }
+    }
+    if (touchedNow){
+      const date = iso(new Date());
+      const w = num(state.profile.weightNow), ft = num(state.profile.fatNow);
+      const found = state.measurements.find(m => m.date === date);
+      if (found){ found.weight = w; found.fat = ft; } else state.measurements.push({ date, weight: w, fat: ft });
+    }
+    save(); render(); return;
+  }
+});
+
+/* ---------- drag to reorder ---------- */
+const DRAG_LISTS = {
+  workouts: () => state.workouts,
+  menu:     () => state.nutrition.menu,
+  habits:   () => state.nutrition.rules,
+  limits:   () => state.nutrition.exclusions
+};
+let drag = null;
+
+function reorderSubset(list, ids){
+  const idxs = ids.map(id => list.findIndex(x => x.id === id)).filter(i => i >= 0).sort((a, b) => a - b);
+  const items = ids.map(id => list.find(x => x.id === id)).filter(Boolean);
+  idxs.forEach((pos, k) => list[pos] = items[k]);
+}
+
+document.addEventListener("pointerdown", e => {
+  const h = e.target.closest(".dragh");
+  if (!h) return;
+  const row = h.closest("[data-drag-row]");
+  if (!row) return;
+  e.preventDefault();
+  drag = { key: h.dataset.drag, row, container: row.parentElement };
+  row.classList.add("dragging");
+  try { h.setPointerCapture(e.pointerId); } catch(err) {}
+});
+document.addEventListener("pointermove", e => {
+  if (!drag) return;
+  e.preventDefault();
+  const rows = [...drag.container.querySelectorAll(":scope > [data-drag-row]")];
+  const over = rows.find(r => r !== drag.row && (b => e.clientY > b.top && e.clientY < b.bottom)(r.getBoundingClientRect()));
+  if (over){
+    const b = over.getBoundingClientRect();
+    if (e.clientY < b.top + b.height / 2) drag.container.insertBefore(drag.row, over);
+    else drag.container.insertBefore(drag.row, over.nextSibling);
+  }
+}, { passive: false });
+document.addEventListener("pointerup", () => {
+  if (!drag) return;
+  drag.row.classList.remove("dragging");
+  const ids = [...drag.container.querySelectorAll(":scope > [data-drag-row]")].map(r => r.dataset.id);
+  const list = DRAG_LISTS[drag.key] ? DRAG_LISTS[drag.key]() : null;
+  drag = null;
+  if (list){ reorderSubset(list, ids); save(); }
+  render();
+});
+document.addEventListener("pointercancel", () => {
+  if (!drag) return;
+  drag.row.classList.remove("dragging");
+  drag = null; render();
+});
+
+save();   // freeze today's (and any missed days') plan snapshot before first paint
+render();
+loadPhotos().then(render);   // photos arrive async from IndexedDB, repaint when ready
+// installable app: register the service worker when served over http(s) with sw.js alongside
+if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
