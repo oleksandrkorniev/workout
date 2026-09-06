@@ -434,6 +434,9 @@ if (!state.workouts){                                              // legacy: pe
   for (let d = 1; d <= 7; d++) for (const w of (state.plan && state.plan[d]) || []) state.workouts.push({ ...w, days: [d] });
 }
 delete state.plan;
+state.workouts.forEach(w => {                                      // one-time workouts retired: recur on their weekday
+  if (w.date){ if (!(w.days || []).length) w.days = [dayIdx(parseIso(w.date))]; delete w.date; }
+});
 {
   const promoted = [];
   state.workouts.forEach(w => {
@@ -518,7 +521,7 @@ function resolve(ex){
     d
   };
 }
-const occursOn = (w, dateIso) => w.date ? w.date === dateIso : (w.days || []).includes(dayIdx(parseIso(dateIso)));
+const occursOn = (w, dateIso) => (w.days || []).includes(dayIdx(parseIso(dateIso)));
 const workoutsFor = dateIso => state.workouts.filter(w => occursOn(w, dateIso));
 const effOf = (w, dateIso) => {
   const cid = (state.wopts[dateIso] || {})[w.id];
@@ -529,7 +532,7 @@ const exercisesFor = dateIso => workoutsFor(dateIso).flatMap(w => unitsOf(effOf(
 const findWk = id => state.workouts.find(w => w.id === id) || state.backup.find(x => x.id === id) || null;
 const findMenu = id => state.nutrition.menu.find(x => x.id === id);
 const allExercises = () => state.workouts.flatMap(w =>
-  unitsOf(w).map(e => ({ ...e, lbl: w.date ? "1x" : (w.days || []).length ? DAYS[w.days[0] - 1].slice(0,3) : "&mdash;" })));
+  unitsOf(w).map(e => ({ ...e, lbl: (w.days || []).length ? DAYS[w.days[0] - 1].slice(0,3) : "&mdash;" })));
 
 /* ---------- logs: one done-flag per exercise per date ---------- */
 const exDone = (date, ex) => !!(state.logs[date] && state.logs[date][ex.id] && state.logs[date][ex.id].done);
@@ -680,18 +683,10 @@ function wkCardView(w){
 }
 
 function scheduleRow(w){
-  if (!w.days && !w.date) return "";
-  const oneTime = !!w.date;
-  return `<div style="margin-top:12px"><label>Repeat</label>
-    <div class="row" style="gap:7px">
-      <button class="sm ${oneTime ? "ghost" : "pri"}" data-act="wkrecur" data-w="${w.id}" data-t="weekly">Weekly</button>
-      <button class="sm ${oneTime ? "pri" : "ghost"}" data-act="wkrecur" data-w="${w.id}" data-t="once">One-time</button>
+  return `<div style="margin-top:12px"><label>Days</label>
+    <div class="row" style="margin-top:2px;gap:6px">
+      ${DAYS.map((d,i) => `<button class="daychip ${(w.days || []).includes(i+1) ? "on" : ""}" data-act="wkday" data-w="${w.id}" data-d="${i+1}">${d[0]}</button>`).join("")}
     </div>
-    ${oneTime
-      ? `<div class="tiny" style="margin-top:9px">Only on ${esc(w.date)}</div>`
-      : `<div class="row" style="margin-top:10px;gap:6px">
-          ${DAYS.map((d,i) => `<button class="daychip ${(w.days || []).includes(i+1) ? "on" : ""}" data-act="wkday" data-w="${w.id}" data-d="${i+1}">${d[0]}</button>`).join("")}
-        </div>`}
   </div>`;
 }
 
@@ -824,7 +819,7 @@ function wkRowEdit(w){
   const summ = w.type === "activity"
     ? `${fmt(num(w.mins, 60))} min`
     : `${(w.exercises || []).length} exercise${(w.exercises || []).length === 1 ? "" : "s"}`;
-  const daysTxt = w.date ? esc(w.date) : (w.days || []).length ? w.days.map(d2 => DAYS[d2 - 1][0]).join(" ") : "Unscheduled";
+  const daysTxt = (w.days || []).length ? w.days.map(d2 => DAYS[d2 - 1][0]).join(" ") : "Unscheduled";
   return `<div class="card" data-drag-row data-id="${w.id}" style="padding:13px 18px">
     <div class="between">
       <span class="dragh" data-drag="workouts">&#8801;</span>
@@ -863,7 +858,7 @@ function viewWorkout(){
     html += wks.map(w => editing ? (wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w)) : wkCardView(w)).join("");
   }
   if (editing){
-    const unsched = state.workouts.filter(w => !w.date && !(w.days || []).length);
+    const unsched = state.workouts.filter(w => !(w.days || []).length);
     if (unsched.length) html += `<h2>Unscheduled &mdash; available in choosers</h2>` +
       unsched.map(w => wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w)).join("");
     html += `<button class="addbtn" data-act="addwk">+ Add workout</button>`;
@@ -2189,12 +2184,6 @@ document.addEventListener("click", e => {
     w.days = w.days || [dayIdx(parseIso(sel))];
     if (w.days.includes(d)) w.days = w.days.filter(x => x !== d);
     else w.days = [...w.days, d].sort();
-    save(); render(); return;
-  }
-  if (a === "wkrecur"){
-    const w = findWk(el.dataset.w); if (!w) return;
-    if (el.dataset.t === "once"){ w.date = sel; }
-    else { delete w.date; if (!w.days || !w.days.length) w.days = [dayIdx(parseIso(sel))]; }
     save(); render(); return;
   }
   if (a === "wktype"){
