@@ -625,7 +625,7 @@ const wtInset = wid => `<div style="margin-top:9px;background:var(--card2);borde
 
 function wkCardView(w){
   const eff = effOf(w, sel);
-  const hasAlts = state.workouts.some(o => o.id !== w.id && wtypeOfW(o) === wtypeOfW(w));
+  const hasAlts = state.workouts.some(o => o.id !== w.id);
   const origin = eff !== w ? `<div class="target">${esc(w.title)}</div>` : "";
   const titleAct = hasAlts ? `data-act="wchoose" data-w="${w.id}"` : "";
   if (eff.type === "activity"){
@@ -774,7 +774,7 @@ function wkCardEdit(w){
 
 function wkCardHist(w){
   const live = state.workouts.find(x => x.id === w.id);
-  const hasAlts = !!(live && state.workouts.some(o => o.id !== live.id && wtypeOfW(o) === wtypeOfW(live)));
+  const hasAlts = !!(live && state.workouts.some(o => o.id !== live.id));
   const titleAct = hasAlts ? `data-act="wchoose" data-w="${w.id}"` : "";
   const isAct = w.exs.length === 1 && w.exs[0].id === w.id;
   if (isAct){
@@ -1786,16 +1786,19 @@ function render(){
       const w = state.workouts.find(x => x.id === sheet.wid) || {};
       const curId = (state.wopts[sel] || {})[w.id] || w.id;
       title = `Choose ${esc(w.title || "")}`;
-      const wRow = o => {
-        const summ = o.type === "activity" ? `${fmt(num(o.mins, 0))} min` : `${(o.exercises || []).length} exercise${(o.exercises || []).length === 1 ? "" : "s"}`;
+      const wRow = (o, showType) => {
+        let summ = o.type === "activity" ? `${fmt(num(o.mins, 0))} min` : `${(o.exercises || []).length} exercise${(o.exercises || []).length === 1 ? "" : "s"}`;
+        if (showType) summ = `${esc(cap1(wtypeOfW(o)))} &middot; ${summ}`;
         return `<div class="opt ${curId === o.id ? "on" : ""} tap" data-act="wpickopt" data-id="${o.id}">
           <div class="grow"><div class="oname">${esc(o.title)}</div><div class="target" style="margin-top:2px">${summ}</div></div>
           <div class="ck">&#10003;</div>
         </div>`;
       };
       const others = state.workouts.filter(o => o.id !== w.id && wtypeOfW(o) === wtypeOfW(w));
-      content = wRow(w) + (others.length
-        ? `<div class="tiny" style="margin:12px 0 2px">Other ${esc(wtypeOfW(w))} workouts</div>${others.map(wRow).join("")}` : "");
+      const rest = state.workouts.filter(o => o.id !== w.id && wtypeOfW(o) !== wtypeOfW(w));
+      content = wRow(w)
+        + (others.length ? `<div class="tiny" style="margin:12px 0 2px">Other ${esc(wtypeOfW(w))} workouts</div>${others.map(o => wRow(o)).join("")}` : "")
+        + (rest.length ? `<div class="tiny" style="margin:12px 0 2px">Other types</div>${rest.map(o => wRow(o, true)).join("")}` : "");
       foot = `<button data-act="shcancel">Cancel</button>`;
     } else if (sheet.kind === "photo"){
       const p = photos.find(x => x.id === sheet.pid);
