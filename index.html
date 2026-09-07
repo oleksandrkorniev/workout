@@ -1356,7 +1356,7 @@ function daySnap(ds){
     w: workoutsFor(ds).map(w => snapWk(w, ds)),
     habits: state.nutrition.rules.map(r => ({ id: r.id, name: r.name, kind: r.kind, target: r.target, unit: r.unit })),
     menu: state.nutrition.menu.filter(m => !m.days || m.days.includes(di)).map(m => ({ id: m.id, mtype: m.mtype })),
-    cheats: state.nutrition.exclusions.map(x => ({ id: x.id, name: x.name, limit: num(x.limit, 0) }))
+    cheats: state.nutrition.exclusions.map(x => ({ id: x.id, name: x.name, limit: num(x.limit, 0), xper: x.xper }))
   };
 }
 function snapDays(){
@@ -1379,9 +1379,23 @@ function resnapWorkout(ds, wid){
   if (i >= 0) s.w[i] = snapWk(w, ds); else s.w.push(snapWk(w, ds));
 }
 
+// a cheat's limit applies per its period: day | week (default) | month
+function periodCount(x, dateIso){
+  const per = x.xper || "week";
+  const d = dateIso || sel;
+  if (per === "day") return (state.nutrition.exlog[d] || {})[x.id] || 0;
+  if (per === "month"){
+    const pre = d.slice(0, 7);
+    let n = 0;
+    for (const k in state.nutrition.exlog) if (k.slice(0, 7) === pre) n += state.nutrition.exlog[k][x.id] || 0;
+    return n;
+  }
+  return weekCount(x.id, d);
+}
+const perWord = x => (x.xper || "week") === "day" ? "today" : (x.xper === "month" ? "this month" : "this week");
 const weekOkFor = ds => {
   const cs = snapOf(ds)?.cheats || state.nutrition.exclusions;
-  return cs.every(x => weekCount(x.id, ds) <= num(x.limit, 0));
+  return cs.every(x => periodCount(x, ds) <= num(x.limit, 0));
 };
 
 function habitDone(h, ds){
@@ -1489,7 +1503,7 @@ function viewNutrition(){
   const menu = s ? s.menu.map(m0 => state.nutrition.menu.find(m => m.id === m0.id) || m0)
                  : state.nutrition.menu.filter(m => !m.days || m.days.includes(di));
   const excl = s ? s.cheats.map(c => { const live = state.nutrition.exclusions.find(x => x.id === c.id);
-                   return live ? { ...live, limit: c.limit } : { ...c, alts: [] }; })
+                   return live ? { ...live, limit: c.limit, xper: c.xper } : { ...c, alts: [] }; })
                  : state.nutrition.exclusions;
   const l = state.nutrition.logs[sel] || {};
   const mdone = menu.filter(m => l[m.id]).length;
@@ -1553,7 +1567,7 @@ function viewNutrition(){
             <span class="dragh" data-drag="limits">&#8801;</span>
             <div class="grow tap" data-act="exopen" data-ex="${x.id}">
               <div style="font-weight:600">${esc(x.name)}</div>
-              <div class="tiny">${fmt(num(x.limit,0))}&times; per week${x.xcat ? ` &middot; replaces ${x.xcat === "meal" ? "meals" : "snacks"}` : ""}${(x.alts || []).length ? ` &middot; ${x.alts.length} option${x.alts.length > 1 ? "s" : ""}` : ""}</div>
+              <div class="tiny">${cap1(x.xcat || "other")} &middot; ${fmt(num(x.limit,0))}&times; per ${x.xper || "week"}${(x.alts || []).length ? ` &middot; ${x.alts.length} option${x.alts.length > 1 ? "s" : ""}` : ""}</div>
             </div>
             ${delBtn("xdel", x.id, `data-x="${x.id}"`)}
           </div>
@@ -1565,14 +1579,16 @@ function viewNutrition(){
           ${delBtn("xdel", x.id, `data-x="${x.id}"`)}
           <button class="okbtn" data-act="exopen" data-ex="${x.id}" title="Done">&#10003;</button>
         </div>
-        <div class="f3" style="margin-top:9px">
-          <div><label>Times per week</label><input inputmode="numeric" data-act="xlimit" data-x="${x.id}" value="${esc(x.limit)}"></div>
+        <div class="row" style="margin-top:9px;gap:7px">
+          ${[["meal","Meal"],["snack","Snack"],["","Other"]].map(([k, lb]) =>
+            `<button class="sm ${(x.xcat || "") === k ? "pri" : "ghost"}" data-act="xcat" data-x="${x.id}" data-t="${k}">${lb}</button>`).join("")}
         </div>
-        <div style="margin-top:10px"><label>Replaces</label>
-          <div class="row" style="gap:7px">
-            ${[["meal","Meals"],["snack","Snacks"],["","Nothing"]].map(([k, lb]) =>
-              `<button class="sm ${(x.xcat || "") === k ? "pri" : "ghost"}" data-act="xcat" data-x="${x.id}" data-t="${k}">${lb}</button>`).join("")}
-          </div>
+        <div class="f3" style="margin-top:12px">
+          <div><label>Times per ${x.xper || "week"}</label><input inputmode="numeric" data-act="xlimit" data-x="${x.id}" value="${esc(x.limit)}"></div>
+        </div>
+        <div class="row" style="margin-top:9px;gap:7px">
+          ${[["day","Daily"],["week","Weekly"],["month","Monthly"]].map(([k, lb]) =>
+            `<button class="sm ${(x.xper || "week") === k ? "pri" : "ghost"}" data-act="xper" data-x="${x.id}" data-t="${k}">${lb}</button>`).join("")}
         </div>
         <div style="margin-top:10px"><label>Options</label>
           ${(x.alts || []).map((it, i) =>
@@ -1666,13 +1682,13 @@ function viewNutrition(){
 
   if (excl.length){
     const xrow = x => {
-      const c = weekCount(x.id), over = c > num(x.limit, 0);
+      const c = periodCount(x, sel), over = c > num(x.limit, 0);
       const todays = ((state.nutrition.xpicks[sel] || {})[x.id]) || [];
       const doneToday = (((state.nutrition.exlog[sel] || {})[x.id]) || 0) > 0;
       return `<div class="ex between">
         <div class="grow tap" data-act="xchoose" data-x="${x.id}">
           <div class="name" style="${doneToday ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(x.name)}</div>
-          <div class="target" style="${over ? "color:var(--bad)" : ""}">${c}/${fmt(num(x.limit, 0))} this week${over ? " &middot; over limit" : ""}</div>
+          <div class="target" style="${over ? "color:var(--bad)" : ""}">${c}/${fmt(num(x.limit, 0))} ${perWord(x)}${over ? " &middot; over limit" : ""}</div>
           ${todays.length ? `<div class="target">${todays.reduce((gs, t) => {
             const g = gs.find(y => y.t === t);
             if (g) g.n++; else gs.push({ t, n: 1 });
@@ -1685,9 +1701,9 @@ function viewNutrition(){
         </div>
       </div>`;
     };
-    const xused = excl.reduce((s, x) => s + weekCount(x.id), 0);
+    const xused = excl.reduce((s2, x) => s2 + periodCount(x, sel), 0);
     const xcap = excl.reduce((s, x) => s + num(x.limit, 0), 0);
-    const xover = excl.some(x => weekCount(x.id) > num(x.limit, 0));
+    const xover = excl.some(x => periodCount(x, sel) > num(x.limit, 0));
     html += `<div class="card">
       <div class="chead">${secTitle("limits", "Cheats")}${ring(xcap ? Math.min(xused / xcap, 1) : 0, xover ? "var(--bad)" : "var(--warm)")}</div>
       ${excl.map(xrow).join("")}
@@ -2009,6 +2025,11 @@ document.addEventListener("click", e => {
     if (pk && pk.length) pk.pop();
     save(); render(); return;
   }
+  if (a === "xper"){
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
+    x.xper = el.dataset.t;
+    save(); render(); return;
+  }
   if (a === "xcat"){
     const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
     if (el.dataset.t) x.xcat = el.dataset.t; else delete x.xcat;
@@ -2143,7 +2164,7 @@ document.addEventListener("click", e => {
           name: (a.name && a.name !== m.name) ? a.name : (((a.items || [])[0] || {}).name || m.name + " 2"),
           mtype: m.mtype || inferT(m.name), days: [], items: (a.items || []).map(cloneFood) }));
       });
-      if (pr.exclusions) n2.exclusions = pr.exclusions.map(x => ({ id: uid(), name: x.name, limit: x.limit, xcat: x.xcat, alts: (x.alts || []).map(cloneFood) }));
+      if (pr.exclusions) n2.exclusions = pr.exclusions.map(x => ({ id: uid(), name: x.name, limit: x.limit, xcat: x.xcat, xper: x.xper, alts: (x.alts || []).map(cloneFood) }));
       else if (pr.cheat) n2.exclusions = [{ id: uid(), name: "Cheat", limit: num(pr.cheat.limit, 3), alts: (pr.cheat.options || []).map(cloneFood) }];
       if (pr.water != null && !n2.rules.some(r => r.kind === "count" && r.name === "Water"))
         n2.rules.push({ id: uid(), name: "Water", kind: "count", target: num(pr.water, 5), unit: "glasses" });   // legacy presets stored water separately
@@ -2173,7 +2194,7 @@ document.addEventListener("click", e => {
       id: uid(), name: String(name).trim(), full: true,
       rules: n2.rules.map(r => ({ name: r.name, kind: r.kind, target: r.target, unit: r.unit })),
       menu: n2.menu.map(m => ({ mtype: m.mtype, items: (m.items || []).map(copyFood), days: m.days ? [...m.days] : undefined })),
-      exclusions: n2.exclusions.map(x => ({ name: x.name, limit: x.limit, xcat: x.xcat, alts: (x.alts || []).map(copyFood) }))
+      exclusions: n2.exclusions.map(x => ({ name: x.name, limit: x.limit, xcat: x.xcat, xper: x.xper, alts: (x.alts || []).map(copyFood) }))
     });
     save(); render(); return;
   }
