@@ -1553,10 +1553,13 @@ function viewNutrition(){
       <div style="margin-top:10px"><button class="ghost sm" data-act="naddrule">+ Add habit</button></div>
     </div>`;
 
-    const mrows = state.nutrition.menu.map(mEdit).join("");
+    const schedM = state.nutrition.menu.filter(m => !m.days || m.days.length);
+    const unschedM = state.nutrition.menu.filter(m => m.days && !m.days.length);
     html += `<div class="card">
       <div style="margin-bottom:8px">${secTitle("menu", "Menu")}</div>
-      ${mrows || `<div class="muted">No menu items yet.</div>`}
+      ${schedM.map(mEdit).join("") || `<div class="muted">No menu items yet.</div>`}
+      ${unschedM.length ? `<label style="display:block;margin:16px 0 2px;border-top:1px solid var(--line);padding-top:14px">Unscheduled &mdash; available in choosers</label>
+        ${unschedM.map(mEdit).join("")}` : ""}
       <div style="margin-top:10px"><button class="ghost" data-act="nmadd">+ Add menu item</button></div>
     </div>`;
 
