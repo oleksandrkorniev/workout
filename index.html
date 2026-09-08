@@ -1916,13 +1916,13 @@ function viewNutrition(){
         <div class="grow tap" data-act="xtchoose" data-t="${t.t}">
           <div class="name" style="${picks.length ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(t.name)}</div>
           ${planned && !picks.length ? `<div class="target">${amtLabel(planned)}</div>` : ""}
-          <div class="target" style="${over ? "color:var(--bad)" : ""}">${fmt(pts)}/${fmt(lim)} pts ${perWord(t)}${over ? " &middot; over limit" : ""}</div>
+          <div class="target" style="${over ? "color:var(--bad)" : ""}">${fmt(pts)}/${fmt(lim)} ${perWord(t)}${over ? " &middot; over limit" : ""}</div>
           ${t.replaces && freeSlotForType(t) === null && pts < lim ? `<div class="target" style="color:var(--warm)">No free ${t.replaces} slot &mdash; logging voids the day</div>` : ""}
           ${picks.length ? `<div class="target">${picks.reduce((gs, e) => {
             const g = gs.find(y => y.t === e.label);
             if (g) g.n++; else gs.push({ t: e.label, n: 1 });
             return gs;
-          }, []).map(g => `<div>&bull;&nbsp; ${esc(g.t)}${g.n > 1 ? ` (${g.n})` : ""}</div>`).join("")}</div>` : ""}
+          }, []).map(g => `<div>&bull;&nbsp; ${esc(g.t)} (${g.n})</div>`).join("")}</div>` : ""}
         </div>
         <div class="row" style="gap:4px">
           <button class="x" data-act="xtminus" data-t="${t.t}" title="Undo one">&minus;</button>
