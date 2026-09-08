@@ -108,7 +108,6 @@ button.x:hover{color:var(--bad)}
 .exedit:first-of-type{border-top:0}
 .exedit .f3{margin-top:8px}
 .exedit label{margin-bottom:4px}
-.today{outline:1px solid rgba(195,245,60,.35)}
 .muted{color:var(--dim)}
 .tiny{font-size:14px;color:var(--dim)}
 .ring{width:60px;height:60px;flex:none}
@@ -920,7 +919,7 @@ function viewWorkout(){
   } else {
     const wks = workoutsFor(sel);
     html += wks.length ? wks.map(wkCardView).join("")
-      : `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
+      : `<div class="card">
       <div class="between">
         <div style="font-size:19px;font-weight:650">Rest day</div>
         <span class="badge rest">Rest</span>
@@ -1819,7 +1818,7 @@ function viewNutrition(){
         <div class="chk ${l[h.id] ? "on" : ""}">&#10003;</div>
       </div>`;
     };
-    html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
+    html += `<div class="card">
       <div class="chead">
         ${secTitle("habits", "Habits", hl.length > 0 && hdone >= hl.length)}
         ${hl.length ? ring(hdone / hl.length) : ""}
@@ -1854,7 +1853,7 @@ function viewNutrition(){
       <div class="chk ${l[m.id] ? "on" : ""}" data-act="ndone" data-r="${m.id}">&#10003;</div>
     </div>`;
   };
-  html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
+  html += `<div class="card">
     <div class="chead">
       ${secTitle("menu", "Menu", menu.length > 0 && mdone >= menu.length)}
       ${menu.length ? ring(mdone / menu.length) : ""}
