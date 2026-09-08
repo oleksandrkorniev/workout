@@ -454,6 +454,14 @@ state.workouts.forEach(w => {
   if (!state.wtypes.some(t => t.name === w.wtype))
     state.wtypes.push({ name: w.wtype, icon: (w.icon && ICONKEYS.includes(w.icon)) ? w.icon : "zap" });
 });
+// 2026-09-08: one-time rename of the custom type Warm-Up -> Activity
+if (!state.wtypeRename1){
+  const isWarm = n2 => /^warm[\s-]?up$/.test(String(n2 || ""));
+  state.wtypes.forEach(t => { if (isWarm(t.name)) t.name = "activity"; });
+  state.workouts.forEach(w => { if (isWarm(w.wtype)) w.wtype = "activity"; });
+  state.wtypes = state.wtypes.filter((t, i) => state.wtypes.findIndex(x => x.name === t.name) === i);
+  state.wtypeRename1 = true;
+}
 for (const d in state.logs) for (const id in state.logs[d]){
   const e = state.logs[d][id];
   if (e && e.sets){ state.logs[d][id] = { done: e.sets.some(Boolean) }; }
@@ -847,15 +855,21 @@ function viewWorkout(){
         <span class="badge rest">Rest</span>
       </div>
     </div>`;
-  } else if (!wks.length){
-    html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
+  } else {
+    // an OPEN editor is never dropped: if its days no longer include this day, pin it here until closed
+    const openW = editing && wkOpen ? state.workouts.find(w => w.id === wkOpen) : null;
+    const pinned = openW && (openW.days || []).length && !wks.some(w => w.id === wkOpen) ? openW : null;
+    const dayList = pinned ? [...wks, pinned] : wks;
+    if (!dayList.length){
+      html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
       <div class="between">
         <div style="font-size:19px;font-weight:650">Rest day</div>
         <span class="badge rest">Rest</span>
       </div>
     </div>`;
-  } else {
-    html += wks.map(w => editing ? (wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w)) : wkCardView(w)).join("");
+    } else {
+      html += dayList.map(w => editing ? (wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w)) : wkCardView(w)).join("");
+    }
   }
   if (editing){
     const unsched = state.workouts.filter(w => !(w.days || []).length);
@@ -1965,6 +1979,7 @@ document.addEventListener("click", e => {
     armed = null;
     state.backup = state.backup.filter(x => x.id !== id);
     state.workouts = state.workouts.filter(x => x.id !== id);
+    if (wkOpen === id) wkOpen = null;
     if (editing === id) editing = false;
     save(); render(); return;
   }
