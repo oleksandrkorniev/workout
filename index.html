@@ -1870,7 +1870,7 @@ function viewNutrition(){
         <div class="grow tap" data-act="xchoose" data-x="${x.id}">
           <div class="name" style="${doneToday ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(x.name)}</div>
           <div class="target" style="${over ? "color:var(--bad)" : ""}">${c}/${fmt(num(x.limit, 0))} ${perWord(x)}${over ? " &middot; over limit" : ""}</div>
-          ${freeSlotFor(x) === null ? `<div class="target" style="color:var(--warm)">No free ${x.xcat} slot &mdash; logging voids the day</div>` : ""}
+          ${freeSlotFor(x) === null && c < num(x.limit, 0) ? `<div class="target" style="color:var(--warm)">No free ${x.xcat} slot &mdash; logging voids the day</div>` : ""}
           ${todays.length ? `<div class="target">${todays.reduce((gs, t) => {
             const g = gs.find(y => y.t === t);
             if (g) g.n++; else gs.push({ t, n: 1 });
@@ -1888,6 +1888,7 @@ function viewNutrition(){
     const xover = excl.some(x => periodCount(x, sel) > num(x.limit, 0));
     html += `<div class="card">
       <div class="chead">${secTitle("limits", "Cheats")}${ring(xcap ? Math.min(xused / xcap, 1) : 0, xover ? "var(--bad)" : "var(--warm)")}</div>
+      ${num((state.nutrition.xnoslot || {})[sel], 0) ? `<div class="target" style="color:var(--bad);margin:2px 0 6px">Cheat used with no free slot &mdash; this day is not counted</div>` : ""}
       ${excl.map(xrow).join("")}
     </div>`;
   }
