@@ -316,6 +316,8 @@ let sheet = null;              // bottom sheet: { kind: "workout"|"menu", toBack
 let sheetNew = false;          // sheet just opened -> play the slide-in once
 let exOpen = null;             // exercise expanded inside an editor
 let wkOpen = null;             // which workout is expanded in edit mode (accordion)
+let wkHome = null;             // edit-mode section the open workout editor was opened in
+let exHome = null;             // same for an open menu-item editor
 let wtAdd = null;              // workout editor currently showing the new-type inset
 let wtAddIcon = null;          // icon selected in that inset
 let wtAddName = "";            // name typed in that inset (survives re-renders)
@@ -530,6 +532,9 @@ function resolve(ex){
   };
 }
 const occursOn = (w, dateIso) => (w.days || []).includes(dayIdx(parseIso(dateIso)));
+// which edit-mode section an item belongs to, relative to the selected day
+const wkSec = w => (w.days || []).length ? (occursOn(w, sel) ? "today" : "other") : "unsched";
+const mSec = m => !m.days ? "today" : !m.days.length ? "unsched" : m.days.includes(dayIdx(parseIso(sel))) ? "today" : "other";
 const workoutsFor = dateIso => state.workouts.filter(w => occursOn(w, dateIso));
 const effOf = (w, dateIso) => {
   const cid = (state.wopts[dateIso] || {})[w.id];
@@ -736,8 +741,9 @@ function wkCardEdit(w){
       const time = ex.type === "time";
       const summary = time ? `${fmt(r.mins)} min` : `${r.sets} &times; ${fmt(r.reps)}${r.weight ? ` @ ${fmt(r.weight)} kg` : ""}`;
       if (exOpen !== ex.id){
-        return `<div class="exedit">
+        return `<div class="exedit" data-drag-row data-id="${ex.id}">
           <div class="between">
+            <span class="dragh" data-drag="exs:${w.id}">&#8801;</span>
             <div class="grow tap" data-act="exopen" data-ex="${ex.id}">
               <div style="font-weight:600">${esc(ex.name)}</div>
               <div class="tiny">${summary}</div>
@@ -845,9 +851,19 @@ function wkRowEdit(w){
 
 function viewWorkout(){
   const s = editing ? null : snapOf(sel);
-  const wks = workoutsFor(sel);
   let html = weekStrip("workout");
-  if (s){
+  if (editing){
+    // edit mode lists EVERY workout in three sections; an open editor stays in the
+    // section it was opened in (wkHome) until closed, so day toggles never move it
+    const secs = { today: [], other: [], unsched: [] };
+    state.workouts.forEach(w => secs[wkOpen === w.id && wkHome ? wkHome : wkSec(w)].push(w));
+    const rowOf = w => wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w);
+    html += `<h2>${sel === iso(new Date()) ? "Today" : DAYS[dayIdx(parseIso(sel)) - 1]}</h2>`;
+    html += secs.today.map(rowOf).join("") || `<div class="muted" style="margin-bottom:14px">No workouts on this day.</div>`;
+    if (secs.other.length) html += `<h2>Other days</h2>` + secs.other.map(rowOf).join("");
+    if (secs.unsched.length) html += `<h2>Unscheduled &mdash; available in choosers</h2>` + secs.unsched.map(rowOf).join("");
+    html += `<button class="addbtn" data-act="addwk">+ Add workout</button>`;
+  } else if (s){
     html += s.w.length ? s.w.map(wkCardHist).join("")
       : `<div class="card">
       <div class="between">
@@ -856,26 +872,14 @@ function viewWorkout(){
       </div>
     </div>`;
   } else {
-    // an OPEN editor is never dropped: if its days no longer include this day, pin it here until closed
-    const openW = editing && wkOpen ? state.workouts.find(w => w.id === wkOpen) : null;
-    const pinned = openW && (openW.days || []).length && !wks.some(w => w.id === wkOpen) ? openW : null;
-    const dayList = pinned ? [...wks, pinned] : wks;
-    if (!dayList.length){
-      html += `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
+    const wks = workoutsFor(sel);
+    html += wks.length ? wks.map(wkCardView).join("")
+      : `<div class="card ${sel === iso(new Date()) ? "today" : ""}">
       <div class="between">
         <div style="font-size:19px;font-weight:650">Rest day</div>
         <span class="badge rest">Rest</span>
       </div>
     </div>`;
-    } else {
-      html += dayList.map(w => editing ? (wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w)) : wkCardView(w)).join("");
-    }
-  }
-  if (editing){
-    const unsched = state.workouts.filter(w => !(w.days || []).length);
-    if (unsched.length) html += `<h2>Unscheduled &mdash; available in choosers</h2>` +
-      unsched.map(w => wkOpen === w.id ? wkCardEdit(w) : wkRowEdit(w)).join("");
-    html += `<button class="addbtn" data-act="addwk">+ Add workout</button>`;
   }
   html += `<button class="wide" data-act="rulestoggle">
     <svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><path d="M4 18 9 9l4 5 3-4 4 8z"/></svg>
@@ -1454,7 +1458,8 @@ const mLabel = m => m.mtype ? cap1(m.mtype) : (m.name || cap1(mtypeOf(m)));
 const foodRow = (it, acts) => {
   const p = parseAmt(it.amt);
   const units = [...UNITS]; if (p.unit && !units.includes(p.unit)) units.push(p.unit);
-  return `<div class="row" style="margin-top:8px;gap:6px">
+  return `<div class="row" style="margin-top:8px;gap:6px" ${acts.drag ? `data-drag-row data-id="${acts.i}"` : ""}>
+    ${acts.drag ? `<span class="dragh" data-drag="${acts.drag}" style="padding:8px 4px 8px 0">&#8801;</span>` : ""}
     <input class="grow" data-act="${acts.name}" ${acts.data} value="${esc(it.name)}">
     <input style="width:64px;flex:none;text-align:center" inputmode="decimal" placeholder="200" data-act="${acts.qty}" ${acts.data} value="${esc(p.qty)}">
     <select style="width:80px;flex:none" data-act="${acts.unit}" ${acts.data}>
@@ -1486,7 +1491,7 @@ function menuItemEdit(m){
   }
   const days = m.days || [1,2,3,4,5,6,7];
   const foods = (m.items || []).map((it, i) =>
-    foodRow(it, { name: "nmif", qty: "nmiqty", unit: "nmiunit", del: "nmidel", key: `${m.id}:${i}`, data: `data-m="${m.id}" data-i="${i}"` })).join("");
+    foodRow(it, { name: "nmif", qty: "nmiqty", unit: "nmiunit", del: "nmidel", key: `${m.id}:${i}`, i, drag: `mfoods:${m.id}`, data: `data-m="${m.id}" data-i="${i}"` })).join("");
   return `<div class="exedit" style="background:rgba(195,245,60,.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:12px">
     <div class="between">
       <label style="margin-bottom:0">${mLabel(m)}</label>
@@ -1567,13 +1572,17 @@ function viewNutrition(){
       <div style="margin-top:10px"><button class="ghost sm" data-act="naddrule">+ Add habit</button></div>
     </div>`;
 
-    const schedM = state.nutrition.menu.filter(m => !m.days || m.days.length);
-    const unschedM = state.nutrition.menu.filter(m => m.days && !m.days.length);
+    // edit mode lists EVERY menu item in three sections; an open editor stays in the
+    // section it was opened in (exHome) until closed, so day toggles never move it
+    const msecs = { today: [], other: [], unsched: [] };
+    state.nutrition.menu.forEach(m => msecs[exOpen === m.id && exHome ? exHome : mSec(m)].push(m));
+    const mlbl = (t, first) => `<label style="display:block;${first ? "margin:0 0 2px" : "margin:16px 0 2px;border-top:1px solid var(--line);padding-top:14px"}">${t}</label>`;
     html += `<div class="card">
       <div style="margin-bottom:8px">${secTitle("menu", "Menu")}</div>
-      ${schedM.map(mEdit).join("") || `<div class="muted">No menu items yet.</div>`}
-      ${unschedM.length ? `<label style="display:block;margin:16px 0 2px;border-top:1px solid var(--line);padding-top:14px">Unscheduled &mdash; available in choosers</label>
-        ${unschedM.map(mEdit).join("")}` : ""}
+      ${mlbl(sel === iso(new Date()) ? "Today" : DAYS[di - 1], true)}
+      ${msecs.today.map(mEdit).join("") || `<div class="muted">No menu items on this day.</div>`}
+      ${msecs.other.length ? mlbl("Other days") + msecs.other.map(mEdit).join("") : ""}
+      ${msecs.unsched.length ? mlbl("Unscheduled &mdash; available in choosers") + msecs.unsched.map(mEdit).join("") : ""}
       <div style="margin-top:10px"><button class="ghost" data-act="nmadd">+ Add menu item</button></div>
     </div>`;
 
@@ -1584,7 +1593,7 @@ function viewNutrition(){
             <span class="dragh" data-drag="limits">&#8801;</span>
             <div class="grow tap" data-act="exopen" data-ex="${x.id}">
               <div style="font-weight:600">${esc(x.name)}</div>
-              <div class="tiny">${cap1(x.xcat || "other")} &middot; ${fmt(num(x.limit,0))}&times; per ${x.xper || "week"}${(x.alts || []).length ? ` &middot; ${x.alts.length} option${x.alts.length > 1 ? "s" : ""}` : ""}</div>
+              <div class="tiny">${cap1(x.xcat || "other")}${x.amt ? ` &middot; ${esc(x.amt)}` : ""} &middot; ${fmt(num(x.limit,0))}&times; per ${x.xper || "week"}${(x.alts || []).length ? ` &middot; ${x.alts.length} option${x.alts.length > 1 ? "s" : ""}` : ""}</div>
             </div>
             ${delBtn("xdel", x.id, `data-x="${x.id}"`)}
           </div>
@@ -1597,9 +1606,17 @@ function viewNutrition(){
           <button class="okbtn" data-act="exopen" data-ex="${x.id}" title="Done">&#10003;</button>
         </div>
         <div class="row" style="margin-top:9px;gap:7px">
-          ${[["meal","Meal"],["snack","Snack"],["","Other"]].map(([k, lb]) =>
-            `<button class="sm ${(x.xcat || "") === k ? "pri" : "ghost"}" data-act="xcat" data-x="${x.id}" data-t="${k}">${lb}</button>`).join("")}
+          ${[["meal","Meal"],["snack","Snack"]].map(([k, lb]) =>
+            `<button class="sm ${x.xcat === k ? "pri" : "ghost"}" data-act="xcat" data-x="${x.id}" data-t="${k}">${lb}</button>`).join("")}
         </div>
+        ${(p2 => `<div style="margin-top:12px"><label>Serving (optional)</label>
+        <div class="row" style="gap:6px">
+          <input style="width:74px;flex:none;text-align:center" inputmode="decimal" placeholder="500" data-act="xq" data-x="${x.id}" value="${esc(p2.qty)}">
+          <select style="width:84px;flex:none" data-act="xu" data-x="${x.id}">
+            ${[...UNITS, ...(p2.unit && !UNITS.includes(p2.unit) ? [p2.unit] : [])].map(u => `<option value="${esc(u)}" ${u === p2.unit ? "selected" : ""}>${esc(u)}</option>`).join("")}
+          </select>
+          <div class="tiny grow" style="margin:0">The cheat itself is one of its options.</div>
+        </div></div>`)(parseAmt(x.amt))}
         <div class="f3" style="margin-top:12px">
           <div><label>Times per ${x.xper || "week"}</label><input inputmode="numeric" data-act="xlimit" data-x="${x.id}" value="${esc(x.limit)}"></div>
         </div>
@@ -1609,7 +1626,7 @@ function viewNutrition(){
         </div>
         <div style="margin-top:10px"><label>Options</label>
           ${(x.alts || []).map((it, i) =>
-            foodRow(it, { name: "xaf", qty: "xaq", unit: "xau", del: "xadel", key: `${x.id}:${i}`, data: `data-x="${x.id}" data-i="${i}"` })).join("")}
+            foodRow(it, { name: "xaf", qty: "xaq", unit: "xau", del: "xadel", key: `${x.id}:${i}`, i, drag: `xalts:${x.id}`, data: `data-x="${x.id}" data-i="${i}"` })).join("")}
           <div style="margin-top:8px"><button class="ghost sm" data-act="xaadd" data-x="${x.id}">+ Add option</button></div>
         </div>
       </div>`;
@@ -1799,7 +1816,7 @@ function render(){
         .map(o => optRow(o.id, itemsLbl(o.items) || mLabel(o), "", cur === o.id)).join("");
       const wantCat = mtypeOf(m) === "snack" ? "snack" : "meal";
       const cheats = state.nutrition.exclusions.filter(x => x.xcat === wantCat).flatMap(x =>
-        ((x.alts || []).length ? x.alts.map(o => amtLabel(o)) : [esc(x.name)]).map(lbl =>
+        ((x.alts || []).length ? x.alts.map(o => amtLabel(o)) : [amtLabel(x)]).map(lbl =>
           `<div class="opt tap" data-act="xmeal" data-m="${m.id}" data-x="${x.id}" data-v="${lbl}">
             <div class="grow"><div class="oname" style="color:var(--warm)">${lbl}</div></div>
             <div class="ck" style="color:var(--dim)">&#43;</div>
@@ -1932,11 +1949,17 @@ document.addEventListener("click", e => {
   if (a === "shcancel"){ sheet = null; exOpen = null; render(); return; }
   if (a === "wshift"){ weekOffset += +el.dataset.d; render(); return; }
   if (a === "edit"){ editing = editing ? false : true; exOpen = null; wkOpen = null; render(); return; }
-  if (a === "wkopen"){ wkOpen = wkOpen === el.dataset.w ? null : el.dataset.w; exOpen = null; render(); return; }
-  if (a === "exopen"){ exOpen = exOpen === el.dataset.ex ? null : el.dataset.ex; render(); return; }
+  if (a === "wkopen"){
+    if (wkOpen === el.dataset.w){ wkOpen = null; wkHome = null; }
+    else { const w2 = state.workouts.find(x => x.id === el.dataset.w); wkOpen = el.dataset.w; wkHome = w2 ? wkSec(w2) : null; }
+    exOpen = null; render(); return; }
+  if (a === "exopen"){
+    if (exOpen === el.dataset.ex){ exOpen = null; exHome = null; }
+    else { exOpen = el.dataset.ex; const m2 = state.nutrition.menu.find(x => x.id === exOpen); exHome = m2 ? mSec(m2) : null; }
+    render(); return; }
   if (a === "addwk"){
     const nw = { id: uid(), title: "New workout", exercises: [], wtype: "strength", days: [dayIdx(parseIso(sel))] };
-    state.workouts.push(nw); wkOpen = nw.id; exOpen = null;
+    state.workouts.push(nw); wkOpen = nw.id; wkHome = "today"; exOpen = null;
     save(); render(); return;
   }
   if (a === "wchoose"){
@@ -2015,6 +2038,10 @@ document.addEventListener("click", e => {
     }
     const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
     lg[x.id] = (lg[x.id] || 0) + 1;
+    if (x.amt){   // the cheat is its own option: keep the serving on the day's bullet line
+      const pk = state.nutrition.xpicks[sel] || (state.nutrition.xpicks[sel] = {});
+      (pk[x.id] = pk[x.id] || []).push(`${x.name} \u00b7 ${x.amt}`);
+    }
     save(); render(); return;
   }
   if (a === "xplus"){
@@ -2050,7 +2077,7 @@ document.addEventListener("click", e => {
   }
   if (a === "xcat"){
     const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
-    if (el.dataset.t) x.xcat = el.dataset.t; else delete x.xcat;
+    if (x.xcat === el.dataset.t) delete x.xcat; else x.xcat = el.dataset.t;   // tap the active chip to clear
     save(); render(); return;
   }
   if (a === "xadd"){
@@ -2080,7 +2107,7 @@ document.addEventListener("click", e => {
   }
   if (a === "nmadd"){
     const nm = { id: uid(), mtype: "snack", items: [] };
-    state.nutrition.menu.push(nm); exOpen = nm.id;
+    state.nutrition.menu.push(nm); exOpen = nm.id; exHome = "today";
     save(); render(); return;
   }
   if (a === "nmdel"){
@@ -2182,7 +2209,7 @@ document.addEventListener("click", e => {
           name: (a.name && a.name !== m.name) ? a.name : (((a.items || [])[0] || {}).name || m.name + " 2"),
           mtype: m.mtype || inferT(m.name), days: [], items: (a.items || []).map(cloneFood) }));
       });
-      if (pr.exclusions) n2.exclusions = pr.exclusions.map(x => ({ id: uid(), name: x.name, limit: x.limit, xcat: x.xcat, xper: x.xper, alts: (x.alts || []).map(cloneFood) }));
+      if (pr.exclusions) n2.exclusions = pr.exclusions.map(x => ({ id: uid(), name: x.name, limit: x.limit, xcat: x.xcat, xper: x.xper, amt: x.amt, alts: (x.alts || []).map(cloneFood) }));
       else if (pr.cheat) n2.exclusions = [{ id: uid(), name: "Cheat", limit: num(pr.cheat.limit, 3), alts: (pr.cheat.options || []).map(cloneFood) }];
       if (pr.water != null && !n2.rules.some(r => r.kind === "count" && r.name === "Water"))
         n2.rules.push({ id: uid(), name: "Water", kind: "count", target: num(pr.water, 5), unit: "glasses" });   // legacy presets stored water separately
@@ -2212,7 +2239,7 @@ document.addEventListener("click", e => {
       id: uid(), name: String(name).trim(), full: true,
       rules: n2.rules.map(r => ({ name: r.name, kind: r.kind, target: r.target, unit: r.unit })),
       menu: n2.menu.map(m => ({ mtype: m.mtype, items: (m.items || []).map(copyFood), days: m.days ? [...m.days] : undefined })),
-      exclusions: n2.exclusions.map(x => ({ name: x.name, limit: x.limit, xcat: x.xcat, xper: x.xper, alts: (x.alts || []).map(copyFood) }))
+      exclusions: n2.exclusions.map(x => ({ name: x.name, limit: x.limit, xcat: x.xcat, xper: x.xper, amt: x.amt, alts: (x.alts || []).map(copyFood) }))
     });
     save(); render(); return;
   }
@@ -2292,6 +2319,12 @@ document.addEventListener("change", e => {
     it.amt = joinAmt(p); save(); render(); return;
   }
   if (a === "xf"){ const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (x){ x.name = v; save(); render(); } return; }
+  if (a === "xq" || a === "xu"){
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
+    const p = parseAmt(x.amt);
+    if (a === "xq") p.qty = v; else p.unit = v;
+    x.amt = joinAmt(p); save(); render(); return;
+  }
   if (a === "xaf"){ const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (x && x.alts && x.alts[+el.dataset.i]){ x.alts[+el.dataset.i].name = v; save(); render(); } return; }
   if (a === "xaq" || a === "xau"){
     const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x);
@@ -2342,6 +2375,16 @@ const DRAG_LISTS = {
   habits:   () => state.nutrition.rules,
   limits:   () => state.nutrition.exclusions
 };
+// nested lists are addressed as "kind:parentId"; food/option rows have no ids, so they carry their index
+function dragListFor(key){
+  if (DRAG_LISTS[key]) return { list: DRAG_LISTS[key](), byIndex: false };
+  const c = key.indexOf(":"); if (c < 0) return null;
+  const kind = key.slice(0, c), id = key.slice(c + 1);
+  if (kind === "exs"){ const w = state.workouts.find(x => x.id === id); return w ? { list: w.exercises = w.exercises || [], byIndex: false } : null; }
+  if (kind === "mfoods"){ const m = state.nutrition.menu.find(x => x.id === id); return m ? { list: m.items = m.items || [], byIndex: true } : null; }
+  if (kind === "xalts"){ const x = state.nutrition.exclusions.find(y => y.id === id); return x ? { list: x.alts = x.alts || [], byIndex: true } : null; }
+  return null;
+}
 let drag = null;
 
 function reorderSubset(list, ids){
@@ -2375,9 +2418,13 @@ document.addEventListener("pointerup", () => {
   if (!drag) return;
   drag.row.classList.remove("dragging");
   const ids = [...drag.container.querySelectorAll(":scope > [data-drag-row]")].map(r => r.dataset.id);
-  const list = DRAG_LISTS[drag.key] ? DRAG_LISTS[drag.key]() : null;
+  const t = dragListFor(drag.key);
   drag = null;
-  if (list){ reorderSubset(list, ids); save(); }
+  if (t){
+    if (t.byIndex){ const items = ids.map(i => t.list[+i]).filter(Boolean); t.list.splice(0, t.list.length, ...items); }
+    else reorderSubset(t.list, ids);
+    save();
+  }
   render();
 });
 document.addEventListener("pointercancel", () => {
