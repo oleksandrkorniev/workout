@@ -318,9 +318,7 @@ let wkOpen = null;             // which workout is expanded in edit mode (accord
 let wkHome = null;             // edit-mode section the open workout editor was opened in
 let exHome = null;             // same for an open menu-item editor
 let wtAdd = null;              // workout editor currently showing the new-type inset
-let xtAdd = null;              // cheat editor currently showing the new-type inset
-let xtAddName = "";            // name typed in that inset
-let xtEditT = null;            // cheat type being renamed/deleted (edit inset)
+let xtOpen = null;             // which cheat TYPE is expanded in edit mode (accordion)
 let wtAddIcon = null;          // icon selected in that inset
 let wtAddName = "";            // name typed in that inset (survives re-renders)
 let gMetric = "weight";        // trend graph: which metric
@@ -363,7 +361,8 @@ if (state.nutrition.water){
 }
 if (!state.nutrition.mopts) state.nutrition.mopts = {};
 if (!state.nutrition.xmeal) state.nutrition.xmeal = {};
-if (!state.xcats) state.xcats = ["meal", "snack"];   // cheat types; meal/snack permanent, customs auto-GC
+if (!state.xtypes) state.xtypes = [];                 // cheat TYPES carry the budget: {id, name, limit, xper, replaces}
+if (!state.nutrition.tlog) state.nutrition.tlog = {};  // { date: { typeId: [{x, label, cost, slot?, ns?}] } } — the one cheat log
 if (!state.nutrition.xnoslot) state.nutrition.xnoslot = {};   // per-day count of cheat uses with no free menu slot (voids the day)
 if (!state.wopts) state.wopts = {};
 const normFood = it => typeof it === "string" ? { name: it, amt: "" } : it;
@@ -508,6 +507,27 @@ if (!state.xname1){
   });
   state.xname1 = true;
 }
+// 2026-09-09: the BUDGET moves to the type — a type owns limit/period/what-it-replaces,
+// cheats become priced options (cost in points). Old per-cheat limits merge as the max.
+if (!state.xbudget1){
+  state.xtypes = state.xtypes || [];
+  const byName = {};
+  state.nutrition.exclusions.forEach(x => {
+    const n = x.xcat || "other";
+    if (!byName[n]){
+      byName[n] = { id: uid(), name: n[0].toUpperCase() + n.slice(1), limit: 0,
+        xper: x.xper || "week", replaces: n === "meal" ? "meal" : n === "snack" ? "snack" : "" };
+      state.xtypes.push(byName[n]);
+    }
+    byName[n].limit = Math.max(byName[n].limit, +x.limit || 0);
+    x.xt = byName[n].id;
+    if (x.cost == null) x.cost = 1;
+    delete x.xcat; delete x.limit; delete x.xper;
+  });
+  delete state.xcats;
+  if (!state.nutrition.tlog) state.nutrition.tlog = {};
+  state.xbudget1 = true;
+}
 for (const d in state.logs) for (const id in state.logs[d]){
   const e = state.logs[d][id];
   if (e && e.sets){ state.logs[d][id] = { done: e.sets.some(Boolean) }; }
@@ -528,10 +548,6 @@ if (!state.measReset1){
 const gcTypes = () => {
   if (state.wtypes) state.wtypes = state.wtypes.filter(t =>
     t.name === "strength" || t.name === "cardio" || state.workouts.some(x => wtypeOfW(x) === t.name));
-  if (state.xcats){   // cheat types: adopt any type present in data, drop unused customs
-    state.nutrition.exclusions.forEach(x => { if (x.xcat && !state.xcats.includes(x.xcat)) state.xcats.push(x.xcat); });
-    state.xcats = state.xcats.filter(t => t === "meal" || t === "snack" || state.nutrition.exclusions.some(x => x.xcat === t));
-  }
 };
 const save = () => { try { gcTypes(); snapDays(); } catch(e) {} try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} };
 
@@ -1184,6 +1200,11 @@ function unXmeal(mid){
   const link = (state.nutrition.xmeal[sel] || {})[mid];
   if (!link) return;
   delete state.nutrition.xmeal[sel][mid];
+  if (link.t){   // v140 link: remove the matching entry from the type log
+    const list = ((state.nutrition.tlog[sel] || {})[link.t]) || [];
+    for (let i = list.length - 1; i >= 0; i--) if (list[i].slot === mid){ list.splice(i, 1); break; }
+    return;
+  }
   const lg = state.nutrition.exlog[sel] || {};
   if (lg[link.x]){ lg[link.x]--; if (!lg[link.x]) delete lg[link.x]; }
   const pk = (state.nutrition.xpicks[sel] || {})[link.x];
@@ -1419,8 +1440,7 @@ function daySnap(ds){
     w: workoutsFor(ds).map(w => snapWk(w, ds)),
     habits: state.nutrition.rules.map(r => ({ id: r.id, name: r.name, kind: r.kind, target: r.target, unit: r.unit, xper: r.xper })),
     menu: state.nutrition.menu.filter(m => !m.days || m.days.includes(di)).map(m => ({ id: m.id, mtype: m.mtype })),
-    cheats: state.nutrition.exclusions.filter(x => !x.days || x.days.includes(di))
-      .map(x => ({ id: x.id, name: x.name, xcat: x.xcat, limit: num(x.limit, 0), xper: x.xper }))
+    cheats: state.xtypes.map(t => ({ t: t.id, name: t.name, limit: num(t.limit, 0), xper: t.xper, replaces: t.replaces }))
   };
 }
 function snapDays(){
@@ -1458,9 +1478,11 @@ function periodCount(x, dateIso){
 }
 const perWord = x => (x.xper || "week") === "day" ? "today" : (x.xper === "month" ? "this month" : "this week");
 const weekOkFor = ds => {
-  const cs = snapOf(ds)?.cheats
-    || state.nutrition.exclusions.filter(x => !x.days || x.days.includes(dayIdx(parseIso(ds))));
-  return cs.every(x => periodCount(x, ds) <= num(x.limit, 0));
+  const sn = snapOf(ds);
+  const cs = sn ? (sn.cheats || []) : state.xtypes.map(t => ({ t: t.id, limit: num(t.limit, 0), xper: t.xper }));
+  return cs.every(c => c.t
+    ? typePoints(c.t, ds, c.xper) <= num(c.limit, 0)
+    : periodCount(c, ds) <= num(c.limit, 0));   // pre-v140 snapshot: per-cheat limits over exlog
 };
 
 function habitPeriodCount(h, ds){
@@ -1541,57 +1563,56 @@ const amtLabel = it => esc(it.name) + (it.amt ? ` &middot; ${esc(it.amt)}` : "")
 // a cheat has no title: it IS its type (legacy cheats may still carry a name)
 // meal/snack cheats replace a free menu slot: meal -> lunch/dinner, snack -> snack.
 // undefined = not slot-bound (custom type); null = slot-bound but nothing free.
-function freeSlotFor(x, ds){
-  if (x.xcat !== "meal" && x.xcat !== "snack") return undefined;
+// a meal/snack type fills a free menu slot: meal -> lunch/dinner, snack -> snack.
+// undefined = the type replaces nothing; null = slot-bound but nothing free.
+function freeSlotForType(t, ds){
+  if (t.replaces !== "meal" && t.replaces !== "snack") return undefined;
   const d = ds || sel;
   const sn = snapOf(d);
   const di2 = dayIdx(parseIso(d));
   const mm = sn ? sn.menu : state.nutrition.menu.filter(m => !m.days || m.days.includes(di2));
   const l2 = state.nutrition.logs[d] || {};
-  const want = x.xcat === "snack" ? ["snack"] : ["lunch", "dinner"];
+  const want = t.replaces === "snack" ? ["snack"] : ["lunch", "dinner"];
   return mm.find(m => want.includes(m.mtype || "snack") && !l2[m.id]) || null;
 }
-// one cheat use: count + bullet, fill the first free matching slot, or void the day (xnoslot)
-function logCheat(x, label){
-  const selfLbl = x.name + (x.amt ? ` \u00b7 ${x.amt}` : "");
-  const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
-  lg[x.id] = (lg[x.id] || 0) + 1;
-  if (label && label !== selfLbl){   // the cheat's own serving is already in its title
-    const pk = state.nutrition.xpicks[sel] || (state.nutrition.xpicks[sel] = {});
-    (pk[x.id] = pk[x.id] || []).push(label);
+// one cheat use: the option's cost lands on the TYPE's budget; a meal/snack type fills the
+// given slot (mid) or the first free one, else the use voids the day (entry.ns -> xnoslot)
+function logType(t, x, mid){
+  const label = x.name + (x.amt ? ` \u00b7 ${x.amt}` : "");
+  const entry = { x: x.id, label, cost: +x.cost || 1, slot: null };
+  if (mid) entry.slot = mid;
+  else if (t.replaces){
+    const slot = freeSlotForType(t);
+    if (slot) entry.slot = slot.id;
+    else {
+      entry.ns = true;
+      const ns = state.nutrition.xnoslot = state.nutrition.xnoslot || {};
+      ns[sel] = (ns[sel] || 0) + 1;
+    }
   }
-  const slot = freeSlotFor(x);
-  if (slot){
-    (state.nutrition.xmeal[sel] = state.nutrition.xmeal[sel] || {})[slot.id] = { x: x.id, label: label || selfLbl };
-    (state.nutrition.logs[sel] = state.nutrition.logs[sel] || {})[slot.id] = true;
-  } else if (slot === null){
-    const ns = state.nutrition.xnoslot = state.nutrition.xnoslot || {};
-    ns[sel] = (ns[sel] || 0) + 1;
+  if (entry.slot){
+    (state.nutrition.xmeal[sel] = state.nutrition.xmeal[sel] || {})[entry.slot] = { x: x.id, label, t: t.id };
+    (state.nutrition.logs[sel] = state.nutrition.logs[sel] || {})[entry.slot] = true;
   }
+  const tl = state.nutrition.tlog[sel] || (state.nutrition.tlog[sel] = {});
+  (tl[t.id] = tl[t.id] || []).push(entry);
 }
-const xtInset = xid => `<div style="margin-top:9px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px">
-    <div class="between">
-      <label style="margin-bottom:0">New type</label>
-      <div class="row" style="gap:2px">
-        <button class="x" data-act="xtcancel" title="Cancel">&times;</button>
-        <button class="okbtn" data-act="xtsave" data-x="${xid}" title="Create">&#10003;</button>
-      </div>
-    </div>
-    <input id="xtname" placeholder="Name, e.g. Alcohol" value="${esc(xtAddName)}" style="margin-top:8px">
-  </div>`;
-const xtEditInset = t => `<div style="margin-top:9px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px">
-    <div class="between">
-      <label style="margin-bottom:0">Edit type</label>
-      <div class="row" style="gap:2px">
-        ${armed === "xtdel:" + t
-          ? `<button class="ghost sm" data-act="xtdel" data-t="${esc(t)}" style="color:var(--bad);border-color:rgba(255,95,87,.35);flex:none">Tap again</button>`
-          : `<button class="x" data-act="xtdel" data-t="${esc(t)}" title="Delete type">&times;</button>`}
-        <button class="okbtn" data-act="xteditsave" data-t="${esc(t)}" title="Save">&#10003;</button>
-      </div>
-    </div>
-    <input id="xtename" value="${esc(cap1(t))}" style="margin-top:8px">
-    <div class="tiny" style="margin-top:8px">Deleting a type moves its cheats to Snack.</div>
-  </div>`;
+// points a type has spent in its period window
+function typePoints(tid, ds, xper){
+  const per = xper || (state.xtypes.find(t => t.id === tid) || {}).xper || "week";
+  const sum = d => (((state.nutrition.tlog || {})[d] || {})[tid] || []).reduce((s2, e) => s2 + (+e.cost || 1), 0);
+  if (per === "day") return sum(ds);
+  if (per === "month"){
+    const pre = ds.slice(0, 7);
+    let n = 0;
+    for (const k in state.nutrition.tlog) if (k.slice(0, 7) === pre) n += sum(k);
+    return n;
+  }
+  const mon = mondayOf(parseIso(ds));
+  let n = 0;
+  for (let i = 0; i < 7; i++){ const d = new Date(mon); d.setDate(d.getDate() + i); n += sum(iso(d)); }
+  return n;
+}
 
 function menuItemEdit(m){
   if (exOpen !== m.id){
@@ -1640,9 +1661,9 @@ function viewNutrition(){
                  : state.nutrition.rules;
   const menu = s ? s.menu.map(m0 => state.nutrition.menu.find(m => m.id === m0.id) || m0)
                  : state.nutrition.menu.filter(m => !m.days || m.days.includes(di));
-  const excl = s ? s.cheats.map(c => { const live = state.nutrition.exclusions.find(x => x.id === c.id);
-                   return live ? { ...live, limit: c.limit, xper: c.xper } : { ...c }; })
-                 : state.nutrition.exclusions.filter(x => !x.days || x.days.includes(di));
+  const xts = s ? (s.cheats || []).filter(c => c.t)
+                : state.xtypes.map(t => ({ t: t.id, name: t.name, limit: num(t.limit, 0), xper: t.xper, replaces: t.replaces }));
+  const xlegacy = s ? (s.cheats || []).filter(c => !c.t) : [];   // pre-v140 snapshot days
   const l = state.nutrition.logs[sel] || {};
   const mdone = menu.filter(m => l[m.id]).length;
   let html = weekStrip("nutrition");
@@ -1715,14 +1736,14 @@ function viewNutrition(){
       <div style="margin-top:10px"><button class="ghost" data-act="nmadd">+ Add menu item</button></div>
     </div>`;
 
-    const xEdit = x => {
+    const optEdit = (t2, x) => {
       if (exOpen !== x.id){
         return `<div class="exedit" data-drag-row data-id="${x.id}">
           <div class="between">
-            <span class="dragh" data-drag="limits">&#8801;</span>
+            <span class="dragh" data-drag="xopts:${t2.id}">&#8801;</span>
             <div class="grow tap" data-act="exopen" data-ex="${x.id}">
-              <div style="font-weight:600">${esc(x.name)}</div>
-              <div class="tiny">${cap1(x.xcat || "other")} &middot; ${!x.days ? "Every day" : x.days.length ? x.days.map(d2 => DAYS[d2-1][0]).join(" ") : "Unscheduled"} &middot; ${fmt(num(x.limit,0))}&times; per ${x.xper || "week"}${x.amt ? ` &middot; ${esc(x.amt)}` : ""}</div>
+              <div style="font-weight:600">${amtLabel(x)}</div>
+              <div class="tiny">${fmt(num(x.cost, 1))} pt${num(x.cost, 1) === 1 ? "" : "s"} &middot; ${!x.days ? "Every day" : x.days.length ? x.days.map(d2 => DAYS[d2-1][0]).join(" ") : "Chooser only"}</div>
             </div>
             ${delBtn("xdel", x.id, `data-x="${x.id}"`)}
           </div>
@@ -1734,14 +1755,6 @@ function viewNutrition(){
           ${delBtn("xdel", x.id, `data-x="${x.id}"`)}
           <button class="okbtn" data-act="exopen" data-ex="${x.id}" title="Done">&#10003;</button>
         </div>
-        <div class="row" style="margin-top:9px;gap:7px;flex-wrap:wrap">
-          ${state.xcats.map(k => `<button class="sm ${x.xcat === k ? "pri" : "ghost"}" data-act="xcat" data-x="${x.id}" data-t="${k}">${cap1(k)}</button>`).join("")}
-          ${xtAdd === x.id || xtEditT ? "" : `<button class="sm ghost" data-act="xtadd" data-x="${x.id}" title="Add type">+</button>`}
-        </div>
-        ${xtAdd === x.id ? xtInset(x.id) : xtEditT ? xtEditInset(xtEditT) : ""}
-        <div class="row" style="margin-top:10px;gap:6px">
-          ${DAYS.map((d,i) => `<button class="daychip ${(x.days || [1,2,3,4,5,6,7]).includes(i+1) ? "on" : ""}" data-act="xday" data-x="${x.id}" data-d="${i+1}">${d[0]}</button>`).join("")}
-        </div>
         ${(p2 => `<div style="margin-top:12px"><label>Serving (optional)</label>
         <div class="row" style="gap:6px">
           <input style="width:74px;flex:none;text-align:center" inputmode="decimal" placeholder="500" data-act="xq" data-x="${x.id}" value="${esc(p2.qty)}">
@@ -1750,24 +1763,57 @@ function viewNutrition(){
           </select>
         </div></div>`)(parseAmt(x.amt))}
         <div class="f3" style="margin-top:12px">
-          <div><label>Times per ${x.xper || "week"}</label><input inputmode="numeric" data-act="xlimit" data-x="${x.id}" value="${esc(x.limit)}"></div>
+          <div><label>Points it costs</label><input inputmode="decimal" data-act="xcost" data-x="${x.id}" value="${esc(x.cost ?? 1)}"></div>
+        </div>
+        <div class="row" style="margin-top:10px;gap:6px">
+          ${DAYS.map((d,i) => `<button class="daychip ${(x.days || [1,2,3,4,5,6,7]).includes(i+1) ? "on" : ""}" data-act="xday" data-x="${x.id}" data-d="${i+1}">${d[0]}</button>`).join("")}
+        </div>
+        <div class="tiny" style="margin-top:10px">Days = when this option is the planned pick. All off = chooser-only.</div>
+      </div>`;
+    };
+    const typeEdit = t2 => {
+      const opts = state.nutrition.exclusions.filter(x => x.xt === t2.id);
+      if (xtOpen !== t2.id){
+        return `<div class="exedit" data-drag-row data-id="${t2.id}">
+          <div class="between">
+            <span class="dragh" data-drag="limits">&#8801;</span>
+            <div class="grow tap" data-act="xtopen" data-t="${t2.id}">
+              <div style="font-weight:600">${esc(t2.name)}</div>
+              <div class="tiny">${fmt(num(t2.limit, 0))} pts per ${t2.xper || "week"} &middot; ${t2.replaces ? `replaces ${t2.replaces}` : "counts only"} &middot; ${opts.length} option${opts.length === 1 ? "" : "s"}</div>
+            </div>
+            ${delBtn("xtdel", t2.id, `data-t="${t2.id}"`)}
+          </div>
+        </div>`;
+      }
+      return `<div class="exedit" style="background:rgba(195,245,60,.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:12px">
+        <div class="row">
+          <input class="grow" data-act="xtname" data-t="${t2.id}" value="${esc(t2.name)}" style="font-weight:650">
+          ${delBtn("xtdel", t2.id, `data-t="${t2.id}"`)}
+          <button class="okbtn" data-act="xtopen" data-t="${t2.id}" title="Done">&#10003;</button>
+        </div>
+        <div class="f3" style="margin-top:12px">
+          <div><label>Points per ${t2.xper || "week"}</label><input inputmode="decimal" data-act="xtlimit" data-t="${t2.id}" value="${esc(t2.limit ?? 3)}"></div>
         </div>
         <div class="row" style="margin-top:9px;gap:7px">
           ${[["day","Daily"],["week","Weekly"],["month","Monthly"]].map(([k, lb]) =>
-            `<button class="sm ${(x.xper || "week") === k ? "pri" : "ghost"}" data-act="xper" data-x="${x.id}" data-t="${k}">${lb}</button>`).join("")}
+            `<button class="sm ${(t2.xper || "week") === k ? "pri" : "ghost"}" data-act="xtper" data-t="${t2.id}" data-p="${k}">${lb}</button>`).join("")}
         </div>
-        <div class="tiny" style="margin-top:10px">Meal and snack cheats fill a free menu slot (meal &rarr; lunch/dinner, snack &rarr; snack); logging with no free slot voids the day. Tap the active type chip again to rename or delete a custom type.</div>
+        <div style="margin-top:12px"><label>Replaces</label>
+        <div class="row" style="gap:7px">
+          ${[["meal","Meal"],["snack","Snack"],["","Nothing"]].map(([k, lb]) =>
+            `<button class="sm ${(t2.replaces || "") === k ? "pri" : "ghost"}" data-act="xtrep" data-t="${t2.id}" data-r="${k}">${lb}</button>`).join("")}
+        </div></div>
+        <div style="margin-top:12px"><label>Options</label>
+          ${opts.map(x => optEdit(t2, x)).join("") || `<div class="muted">No options yet.</div>`}
+          <div style="margin-top:8px"><button class="ghost sm" data-act="xadd" data-t="${t2.id}">+ Add option</button></div>
+        </div>
+        <div class="tiny" style="margin-top:10px">One budget for the whole type; every option costs its points. Meal/snack types fill a free menu slot when logged &mdash; none free, and the day is not counted. Deleting a type deletes its options.</div>
       </div>`;
     };
-    const xsecs = { today: [], other: [], unsched: [] };
-    state.nutrition.exclusions.forEach(x => xsecs[exOpen === x.id && exHome ? exHome : mSec(x)].push(x));
     html += `<div class="card">
       <div style="margin-bottom:8px">${secTitle("limits", "Cheats")}</div>
-      ${mlbl(dayName, true)}
-      ${xsecs.today.map(xEdit).join("") || `<div class="muted">No cheats on this day.</div>`}
-      ${xsecs.other.length ? mlbl("Other days") + xsecs.other.map(xEdit).join("") : ""}
-      ${xsecs.unsched.length ? mlbl("Unscheduled &mdash; available in choosers") + xsecs.unsched.map(xEdit).join("") : ""}
-      <div style="margin-top:10px"><button class="ghost sm" data-act="xadd">+ Add cheat</button></div>
+      ${state.xtypes.map(typeEdit).join("") || `<div class="muted">No cheat types yet.</div>`}
+      <div style="margin-top:10px"><button class="ghost sm" data-act="xtaddnew">+ Add type</button></div>
     </div>`;
     html += `<div class="card">
       <div style="font-weight:650">Presets</div>
@@ -1861,36 +1907,48 @@ function viewNutrition(){
     ${shownMenu.map(m => editN === m.id ? mEdit(m) : mrow(m)).join("") || `<div class="muted" style="margin-top:10px">No menu items for this day.</div>`}
   </div>`;
 
-  if (excl.length){
-    const xrow = x => {
-      const c = periodCount(x, sel), over = c > num(x.limit, 0);
-      const todays = (((state.nutrition.xpicks[sel] || {})[x.id]) || [])
-        .filter(t => t !== x.name + (x.amt ? ` \u00b7 ${x.amt}` : ""));
-      const doneToday = (((state.nutrition.exlog[sel] || {})[x.id]) || 0) > 0;
+  if (xts.length || xlegacy.length){
+    const trow = t => {
+      const pts = typePoints(t.t, sel, t.xper), lim = num(t.limit, 0), over = pts > lim;
+      const picks = ((state.nutrition.tlog[sel] || {})[t.t]) || [];
+      const planned = state.nutrition.exclusions.find(x => x.xt === t.t && (!x.days || x.days.includes(di)));
       return `<div class="ex between">
-        <div class="grow tap" data-act="xchoose" data-x="${x.id}">
-          <div class="name" style="${doneToday ? "color:var(--dim);text-decoration:line-through" : ""}">${amtLabel(x)}</div>
-          <div class="target" style="${over ? "color:var(--bad)" : ""}">${c}/${fmt(num(x.limit, 0))} ${perWord(x)}${over ? " &middot; over limit" : ""}</div>
-          ${freeSlotFor(x) === null && c < num(x.limit, 0) ? `<div class="target" style="color:var(--warm)">No free ${x.xcat} slot &mdash; logging voids the day</div>` : ""}
-          ${todays.length ? `<div class="target">${todays.reduce((gs, t) => {
-            const g = gs.find(y => y.t === t);
-            if (g) g.n++; else gs.push({ t, n: 1 });
+        <div class="grow tap" data-act="xtchoose" data-t="${t.t}">
+          <div class="name" style="${picks.length ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(t.name)}</div>
+          ${planned && !picks.length ? `<div class="target">${amtLabel(planned)}</div>` : ""}
+          <div class="target" style="${over ? "color:var(--bad)" : ""}">${fmt(pts)}/${fmt(lim)} pts ${perWord(t)}${over ? " &middot; over limit" : ""}</div>
+          ${t.replaces && freeSlotForType(t) === null && pts < lim ? `<div class="target" style="color:var(--warm)">No free ${t.replaces} slot &mdash; logging voids the day</div>` : ""}
+          ${picks.length ? `<div class="target">${picks.reduce((gs, e) => {
+            const g = gs.find(y => y.t === e.label);
+            if (g) g.n++; else gs.push({ t: e.label, n: 1 });
             return gs;
-          }, []).map(g => `<div>&bull;&nbsp; ${esc(g.t)} (${g.n})</div>`).join("")}</div>` : ""}
+          }, []).map(g => `<div>&bull;&nbsp; ${esc(g.t)}${g.n > 1 ? ` (${g.n})` : ""}</div>`).join("")}</div>` : ""}
         </div>
         <div class="row" style="gap:4px">
-          <button class="x" data-act="xminus" data-x="${x.id}" title="Undo one">&minus;</button>
-          <button class="tap" style="background:none;border:0;padding:0" data-act="xplus" data-x="${x.id}">${xring(c, num(x.limit, 0), over ? "var(--bad)" : "var(--warm)")}</button>
+          <button class="x" data-act="xtminus" data-t="${t.t}" title="Undo one">&minus;</button>
+          <button class="tap" style="background:none;border:0;padding:0" data-act="xtplus" data-t="${t.t}">${xring(pts, lim, over ? "var(--bad)" : "var(--warm)")}</button>
         </div>
       </div>`;
     };
-    const xused = excl.reduce((s2, x) => s2 + periodCount(x, sel), 0);
-    const xcap = excl.reduce((s, x) => s + num(x.limit, 0), 0);
-    const xover = excl.some(x => periodCount(x, sel) > num(x.limit, 0));
+    // pre-v140 snapshot days: display-only rows from the old per-cheat log
+    const lrow = x => {
+      const c = periodCount(x, sel), over = c > num(x.limit, 0);
+      const todays = ((state.nutrition.xpicks[sel] || {})[x.id]) || [];
+      return `<div class="ex between">
+        <div class="grow">
+          <div class="name">${esc(x.name)}</div>
+          <div class="target" style="${over ? "color:var(--bad)" : ""}">${c}/${fmt(num(x.limit, 0))} ${perWord(x)}${over ? " &middot; over limit" : ""}</div>
+          ${todays.length ? `<div class="target">${todays.map(g => `<div>&bull;&nbsp; ${esc(g)}</div>`).join("")}</div>` : ""}
+        </div>
+      </div>`;
+    };
+    const xused = xts.reduce((s2, t) => s2 + typePoints(t.t, sel, t.xper), 0);
+    const xcap = xts.reduce((s2, t) => s2 + num(t.limit, 0), 0);
+    const xover = xts.some(t => typePoints(t.t, sel, t.xper) > num(t.limit, 0));
     html += `<div class="card">
       <div class="chead">${secTitle("limits", "Cheats")}${ring(xcap ? Math.min(xused / xcap, 1) : 0, xover ? "var(--bad)" : "var(--warm)")}</div>
       ${num((state.nutrition.xnoslot || {})[sel], 0) ? `<div class="target" style="color:var(--bad);margin:2px 0 6px">Cheat used with no free slot &mdash; this day is not counted</div>` : ""}
-      ${excl.map(xrow).join("")}
+      ${xts.map(trow).join("")}${xlegacy.map(lrow).join("")}
     </div>`;
   }
 
@@ -1965,25 +2023,25 @@ function render(){
         .filter(o => o.id !== m.id && mtypeOf(o) === mtypeOf(m))
         .map(o => optRow(o.id, itemsLbl(o.items) || mLabel(o), "", cur === o.id)).join("");
       const wantCat = mtypeOf(m) === "snack" ? "snack" : (mtypeOf(m) === "lunch" || mtypeOf(m) === "dinner") ? "meal" : "none";
-      const cheats = state.nutrition.exclusions.filter(x => x.xcat === wantCat).map(x =>
-        `<div class="opt tap" data-act="xmeal" data-m="${m.id}" data-x="${x.id}" data-v="${amtLabel(x)}">
-            <div class="grow"><div class="oname">${amtLabel(x)}</div></div>
+      const cheats = state.xtypes.filter(t2 => t2.replaces === wantCat).flatMap(t2 =>
+        state.nutrition.exclusions.filter(x => x.xt === t2.id).map(x =>
+          `<div class="opt tap" data-act="xmeal" data-m="${m.id}" data-x="${x.id}">
+            <div class="grow"><div class="oname">${amtLabel(x)}</div>
+              <div class="target" style="margin-top:2px">${esc(t2.name)} &middot; ${fmt(num(x.cost, 1))} pt${num(x.cost, 1) === 1 ? "" : "s"}</div></div>
             <div class="ck" style="color:var(--dim)">&#43;</div>
-          </div>`).join("");
+          </div>`)).join("");
       content = own + (others ? `<div class="tiny" style="margin:12px 0 2px">Other ${mtypeOf(m) === "lunch" ? "lunches" : esc(mtypeOf(m)) + "s"}</div>${others}` : "")
         + (cheats ? `<div class="tiny" style="margin:12px 0 2px">Cheat instead</div>${cheats}` : "");
       foot = `<button data-act="shcancel">Cancel</button>`;
     } else if (sheet.kind === "xpick"){
-      const x = state.nutrition.exclusions.find(y => y.id === sheet.xid) || { name: "", items: [] };
-      title = `Choose ${esc(x.name)}`;
-      const xoptRow = (lbl, v) => `<div class="opt tap" data-act="xpickopt" data-v="${v}">
-          <div class="grow"><div class="oname">${lbl}</div></div>
+      const t2 = state.xtypes.find(z => z.id === sheet.t) || { name: "" };
+      title = `Choose ${esc(t2.name)}`;
+      content = state.nutrition.exclusions.filter(x => x.xt === sheet.t).map(x =>
+        `<div class="opt tap" data-act="xpickopt" data-x="${x.id}">
+          <div class="grow"><div class="oname">${amtLabel(x)}</div>
+            <div class="target" style="margin-top:2px">${fmt(num(x.cost, 1))} pt${num(x.cost, 1) === 1 ? "" : "s"}</div></div>
           <div class="ck" style="color:var(--dim)">&#43;</div>
-        </div>`;
-      const others = state.nutrition.exclusions.filter(o => o.id !== x.id && (o.xcat || "") === (x.xcat || ""));
-      content = xoptRow(amtLabel(x), x.amt ? amtLabel(x) : "")
-        + (others.length ? `<div class="tiny" style="margin:12px 0 2px">Other ${x.xcat ? esc(x.xcat) + " " : ""}cheats</div>`
-            + others.map(o => xoptRow(amtLabel(o), amtLabel(o))).join("") : "");
+        </div>`).join("");
       foot = `<button data-act="shcancel">Cancel</button>`;
     } else if (sheet.kind === "wpick"){
       const w = state.workouts.find(x => x.id === sheet.wid) || {};
@@ -2107,9 +2165,9 @@ document.addEventListener("click", e => {
     else { const w2 = state.workouts.find(x => x.id === el.dataset.w); wkOpen = el.dataset.w; wkHome = w2 ? wkSec(w2) : null; }
     exOpen = null; render(); return; }
   if (a === "exopen"){
-    if (exOpen === el.dataset.ex){ exOpen = null; exHome = null; xtAdd = null; xtEditT = null; }
+    if (exOpen === el.dataset.ex){ exOpen = null; exHome = null; }
     else { exOpen = el.dataset.ex;
-      const m2 = state.nutrition.menu.find(x => x.id === exOpen) || state.nutrition.exclusions.find(x => x.id === exOpen);
+      const m2 = state.nutrition.menu.find(x => x.id === exOpen);
       exHome = m2 ? mSec(m2) : null; }
     render(); return; }
   if (a === "addwk"){
@@ -2163,7 +2221,7 @@ document.addEventListener("click", e => {
     save(); render(); return;
   }
   if (a === "edittgt"){ editTargets = !editTargets; render(); return; }
-  if (a === "editn"){ editN = !editN; exOpen = null; render(); return; }
+  if (a === "editn"){ editN = !editN; exOpen = null; xtOpen = null; render(); return; }
   if (a === "ndone"){
     const id = el.dataset.r;
     const l = state.nutrition.logs[sel] || (state.nutrition.logs[sel] = {});
@@ -2192,91 +2250,76 @@ document.addEventListener("click", e => {
     r.xper = el.dataset.t;
     save(); render(); return;
   }
-  if (a === "xchoose"){
-    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
-    if (state.nutrition.exclusions.some(o => o.id !== x.id && (o.xcat || "") === (x.xcat || ""))){
-      sheetNew = true; sheet = { kind: "xpick", xid: x.id };
-      render(); return;
-    }
-    logCheat(x, x.amt ? `${x.name} \u00b7 ${x.amt}` : "");
-    save(); render(); return;
+  if (a === "xtchoose"){
+    const t = state.xtypes.find(z => z.id === el.dataset.t); if (!t) return;
+    const opts = state.nutrition.exclusions.filter(x => x.xt === t.id);
+    if (!opts.length) return;
+    if (opts.length === 1){ logType(t, opts[0]); save(); render(); return; }
+    sheetNew = true; sheet = { kind: "xpick", t: t.id };
+    render(); return;
   }
-  if (a === "xplus"){
-    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
-    logCheat(x, x.amt ? `${x.name} \u00b7 ${x.amt}` : "");
-    save(); render(); return;
+  if (a === "xtplus"){
+    const t = state.xtypes.find(z => z.id === el.dataset.t); if (!t) return;
+    const opts = state.nutrition.exclusions.filter(x => x.xt === t.id);
+    if (!opts.length) return;
+    const planned = opts.find(x => !x.days || x.days.includes(dayIdx(parseIso(sel))));
+    const pick = planned || (opts.length === 1 ? opts[0] : null);
+    if (pick){ logType(t, pick); save(); render(); return; }
+    sheetNew = true; sheet = { kind: "xpick", t: t.id };
+    render(); return;
   }
   if (a === "xpickopt"){
     if (!sheet || sheet.kind !== "xpick") return;
-    const x = state.nutrition.exclusions.find(y => y.id === sheet.xid); if (!x) return;
-    logCheat(x, el.dataset.v || "");
+    const t = state.xtypes.find(z => z.id === sheet.t);
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x);
+    if (t && x) logType(t, x);
     sheet = null; save(); render(); return;
   }
-  if (a === "xminus"){
-    const id = el.dataset.x;
-    const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
-    if (!num(lg[id], 0)){ return; }
-    const x = state.nutrition.exclusions.find(y => y.id === id);
-    const ns = state.nutrition.xnoslot || {};
-    if (x && (x.xcat === "meal" || x.xcat === "snack") && num(ns[sel], 0) > 0){
-      // undo an over-plan use first: restores the day without unchecking a completed meal
-      ns[sel]--; if (!ns[sel]) delete ns[sel];
-      lg[id] = Math.max(0, num(lg[id], 0) - 1); if (!lg[id]) delete lg[id];
-      const pk = (state.nutrition.xpicks[sel] || {})[id];
-      if (pk && pk.length) pk.pop();
-      save(); render(); return;
+  if (a === "xtminus"){
+    const list = ((state.nutrition.tlog[sel] || {})[el.dataset.t]) || [];
+    const e = list.pop();
+    if (!e){ render(); return; }
+    if (e.slot){
+      delete (state.nutrition.xmeal[sel] || {})[e.slot];
+      delete (state.nutrition.logs[sel] || {})[e.slot];   // the slot opens back up
+    } else if (e.ns){
+      const ns = state.nutrition.xnoslot || {};
+      if (ns[sel]){ ns[sel]--; if (!ns[sel]) delete ns[sel]; }
     }
-    const links = state.nutrition.xmeal[sel] || {};
-    const mid = Object.keys(links).find(k => links[k].x === id);
-    if (mid){
-      unXmeal(mid);   // reverses the count, the bullet, and the link
-      delete (state.nutrition.logs[sel] || {})[mid];   // the slot opens back up
-      save(); render(); return;
-    }
-    lg[id] = Math.max(0, num(lg[id], 0) - 1); if (!lg[id]) delete lg[id];
-    const pk = (state.nutrition.xpicks[sel] || {})[id];
-    if (pk && pk.length) pk.pop();
     save(); render(); return;
   }
-  if (a === "xper"){
-    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
-    x.xper = el.dataset.t;
-    save(); render(); return;
+  if (a === "xtopen"){
+    xtOpen = xtOpen === el.dataset.t ? null : el.dataset.t;
+    exOpen = null; render(); return;
   }
-  if (a === "xcat"){
-    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
-    const t = el.dataset.t;
-    if (x.xcat === t){   // a type is required: tapping the active chip edits it (custom types only)
-      if (t !== "meal" && t !== "snack"){ xtEditT = t; xtAdd = null; render(); }
-      return;
-    }
-    x.xcat = t; xtEditT = null;
-    save(); render(); return;
-  }
-  if (a === "xteditsave"){
-    const inp = document.getElementById("xtename");
-    const nn = ((inp && inp.value) || "").trim().toLowerCase();
-    if (!nn || !xtEditT) return;
-    if (nn !== xtEditT){
-      state.xcats = state.xcats.map(t => t === xtEditT ? nn : t).filter((t, i, arr) => arr.indexOf(t) === i);
-      state.nutrition.exclusions.forEach(x => { if (x.xcat === xtEditT) x.xcat = nn; });
-    }
-    xtEditT = null;
+  if (a === "xtaddnew"){
+    const nt = { id: uid(), name: "New type", limit: 3, xper: "week", replaces: "" };
+    state.xtypes.push(nt); xtOpen = nt.id; exOpen = null;
     save(); render(); return;
   }
   if (a === "xtdel"){
     const k = "xtdel:" + el.dataset.t;
     if (armed !== k){ armed = k; render(); return; }
     armed = null;
-    const t = el.dataset.t;
-    state.xcats = state.xcats.filter(z => z !== t);
-    state.nutrition.exclusions.forEach(x => { if (x.xcat === t) x.xcat = "snack"; });
-    xtEditT = null;
+    state.xtypes = state.xtypes.filter(t => t.id !== el.dataset.t);
+    state.nutrition.exclusions = state.nutrition.exclusions.filter(x => x.xt !== el.dataset.t);
+    if (xtOpen === el.dataset.t) xtOpen = null;
+    save(); render(); return;
+  }
+  if (a === "xtper"){
+    const t = state.xtypes.find(z => z.id === el.dataset.t); if (!t) return;
+    t.xper = el.dataset.p;
+    save(); render(); return;
+  }
+  if (a === "xtrep"){
+    const t = state.xtypes.find(z => z.id === el.dataset.t); if (!t) return;
+    if (el.dataset.r) t.replaces = el.dataset.r; else t.replaces = "";
     save(); render(); return;
   }
   if (a === "xadd"){
-    const nx = { id: uid(), name: "New cheat", limit: 1, xcat: "snack" };
-    state.nutrition.exclusions.push(nx); exOpen = nx.id; exHome = "today";
+    const t = state.xtypes.find(z => z.id === el.dataset.t); if (!t) return;
+    const nx = { id: uid(), name: "New option", amt: "", cost: 1, xt: t.id };
+    state.nutrition.exclusions.push(nx); exOpen = nx.id;
     save(); render(); return;
   }
   if (a === "xdel"){
@@ -2293,18 +2336,6 @@ document.addEventListener("click", e => {
     if (x.days.includes(d)) x.days = x.days.filter(z => z !== d);
     else x.days = [...x.days, d].sort();
     if (x.days.length === 7) delete x.days;
-    save(); render(); return;
-  }
-  if (a === "xtadd"){ xtAdd = el.dataset.x; xtAddName = ""; render(); return; }
-  if (a === "xtcancel"){ xtAdd = null; xtAddName = ""; render(); return; }
-  if (a === "xtsave"){
-    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
-    const inp = document.getElementById("xtname");
-    const name = ((inp && inp.value) || xtAddName || "").trim().toLowerCase();
-    if (!name) return;
-    if (!state.xcats.includes(name)) state.xcats.push(name);
-    x.xcat = name;
-    xtAdd = null; xtAddName = "";
     save(); render(); return;
   }
   if (a === "nmadd"){
@@ -2334,15 +2365,13 @@ document.addEventListener("click", e => {
   }
   if (a === "xmeal"){
     if (!sheet || sheet.kind !== "pick") return;
-    const mid = el.dataset.m, xid = el.dataset.x, lbl = el.dataset.v;
+    const mid = el.dataset.m;
+    const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x);
+    const t = x && state.xtypes.find(z => z.id === x.xt);
+    if (!t){ sheet = null; render(); return; }
     unXmeal(mid);
-    const lg = state.nutrition.exlog[sel] || (state.nutrition.exlog[sel] = {});
-    lg[xid] = (lg[xid] || 0) + 1;
-    const pk = state.nutrition.xpicks[sel] || (state.nutrition.xpicks[sel] = {});
-    (pk[xid] = pk[xid] || []).push(lbl);
-    (state.nutrition.xmeal[sel] = state.nutrition.xmeal[sel] || {})[mid] = { x: xid, label: lbl };
+    logType(t, x, mid);
     if (state.nutrition.mopts[sel]) delete state.nutrition.mopts[sel][mid];
-    (state.nutrition.logs[sel] = state.nutrition.logs[sel] || {})[mid] = true;
     sheet = null; save(); render(); return;
   }
   if (a === "naddrule"){
@@ -2362,7 +2391,8 @@ document.addEventListener("click", e => {
     armed = null;
     const presets = state.nutrition.presets;
     state.nutrition = { rules: [{ id: "water", name: "Water", kind: "count", target: 5, unit: "glasses" }],
-      logs: {}, presets, menu: [], exclusions: [], exlog: {}, mopts: {}, xpicks: {}, xmeal: {} };
+      logs: {}, presets, menu: [], exclusions: [], exlog: {}, mopts: {}, xpicks: {}, xmeal: {}, tlog: {}, xnoslot: {} };
+    state.xtypes = [];
     editN = false;
     save(); render(); return;
   }
@@ -2411,19 +2441,33 @@ document.addEventListener("click", e => {
           name: (a.name && a.name !== m.name) ? a.name : (((a.items || [])[0] || {}).name || m.name + " 2"),
           mtype: m.mtype || inferT(m.name), days: [], items: (a.items || []).map(cloneFood) }));
       });
-      if (pr.exclusions){
-        n2.exclusions = [];
+      if (pr.xtypes){
+        state.xtypes = []; n2.exclusions = [];
+        pr.xtypes.forEach(t => {
+          const nt = { id: uid(), name: t.name, limit: num(t.limit, 0), xper: t.xper || "week", replaces: t.replaces || "" };
+          state.xtypes.push(nt);
+          (t.options || []).forEach(o => n2.exclusions.push({ id: uid(), name: o.name, amt: o.amt || "",
+            cost: num(o.cost, 1), days: o.days, xt: nt.id }));
+        });
+      } else if (pr.exclusions){
+        // pre-v140 preset: group per-cheat entries into type budgets (max of member limits)
+        state.xtypes = []; n2.exclusions = [];
+        const byName = {};
         pr.exclusions.forEach(x => {
+          const cat = x.xcat || "other";
+          if (!byName[cat]){
+            byName[cat] = { id: uid(), name: cat[0].toUpperCase() + cat.slice(1), limit: 0, xper: x.xper || "week",
+              replaces: cat === "meal" ? "meal" : cat === "snack" ? "snack" : "" };
+            state.xtypes.push(byName[cat]);
+          }
+          byName[cat].limit = Math.max(byName[cat].limit, num(x.limit, 0));
           const it0 = (x.items || [])[0];
-          n2.exclusions.push({ id: uid(), name: x.name || (it0 && it0.name) || "Cheat", limit: x.limit, xcat: x.xcat || "other", xper: x.xper, days: x.days,
+          n2.exclusions.push({ id: uid(), name: x.name || (it0 && it0.name) || "Cheat", days: x.days, cost: 1, xt: byName[cat].id,
             amt: x.amt || ((x.items || []).length === 1 && it0 && it0.amt) || "" });
           (x.alts || []).forEach(a2 => n2.exclusions.push({ id: uid(), name: typeof a2 === "string" ? a2 : a2.name,
-            xcat: x.xcat || "other", limit: x.limit, xper: x.xper, days: [], amt: (typeof a2 === "string" ? "" : a2.amt) || "" }));
+            days: [], cost: 1, xt: byName[cat].id, amt: (typeof a2 === "string" ? "" : a2.amt) || "" }));
         });
       }
-      else if (pr.cheat) n2.exclusions = [{ id: uid(), name: "Cheat", xcat: "other", limit: num(pr.cheat.limit, 3) },
-        ...(pr.cheat.options || []).map(a2 => ({ id: uid(), name: typeof a2 === "string" ? a2 : a2.name, xcat: "other",
-          limit: num(pr.cheat.limit, 3), days: [], amt: (typeof a2 === "string" ? "" : a2.amt) || "" }))];
       if (pr.water != null && !n2.rules.some(r => r.kind === "count" && r.name === "Water"))
         n2.rules.push({ id: uid(), name: "Water", kind: "count", target: num(pr.water, 5), unit: "glasses" });   // legacy presets stored water separately
     } else {
@@ -2452,7 +2496,8 @@ document.addEventListener("click", e => {
       id: uid(), name: String(name).trim(), full: true,
       rules: n2.rules.map(r => ({ name: r.name, kind: r.kind, target: r.target, unit: r.unit, xper: r.xper })),
       menu: n2.menu.map(m => ({ mtype: m.mtype, items: (m.items || []).map(copyFood), days: m.days ? [...m.days] : undefined })),
-      exclusions: n2.exclusions.map(x => ({ name: x.name, limit: x.limit, xcat: x.xcat, xper: x.xper, days: x.days, amt: x.amt }))
+      xtypes: state.xtypes.map(t => ({ name: t.name, limit: t.limit, xper: t.xper, replaces: t.replaces,
+        options: state.nutrition.exclusions.filter(x => x.xt === t.id).map(x => ({ name: x.name, amt: x.amt, cost: x.cost, days: x.days })) }))
     });
     save(); render(); return;
   }
@@ -2527,13 +2572,15 @@ document.addEventListener("change", e => {
     it.amt = joinAmt(p); save(); render(); return;
   }
   if (a === "xf"){ const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (x){ x.name = v; save(); render(); } return; }
+  if (a === "xcost"){ const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (x){ x.cost = Math.max(0, num(v, x.cost ?? 1)); save(); render(); } return; }
+  if (a === "xtname"){ const t = state.xtypes.find(z => z.id === el.dataset.t); if (t){ t.name = v; save(); render(); } return; }
+  if (a === "xtlimit"){ const t = state.xtypes.find(z => z.id === el.dataset.t); if (t){ t.limit = Math.max(0, num(v, t.limit)); save(); render(); } return; }
   if (a === "xq" || a === "xu"){
     const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (!x) return;
     const p = parseAmt(x.amt);
     if (a === "xq") p.qty = v; else p.unit = v;
     x.amt = joinAmt(p); save(); render(); return;
   }
-  if (a === "xlimit"){ const x = state.nutrition.exclusions.find(y => y.id === el.dataset.x); if (x){ x.limit = Math.max(0, num(v, x.limit)); save(); render(); } return; }
   if (a === "wktitle"){ const w = findWk(el.dataset.w); if (w){ w.title = v; save(); render(); } return; }
   if (a === "wkmins"){ const w = findWk(el.dataset.w); if (w){ w.mins = num(v, w.mins); save(); render(); } return; }
   if (a === "exf"){
@@ -2573,7 +2620,7 @@ const DRAG_LISTS = {
   workouts: () => state.workouts,
   menu:     () => state.nutrition.menu,
   habits:   () => state.nutrition.rules,
-  limits:   () => state.nutrition.exclusions
+  limits:   () => state.xtypes
 };
 // nested lists are addressed as "kind:parentId"; food/option rows have no ids, so they carry their index
 function dragListFor(key){
@@ -2581,6 +2628,7 @@ function dragListFor(key){
   const c = key.indexOf(":"); if (c < 0) return null;
   const kind = key.slice(0, c), id = key.slice(c + 1);
   if (kind === "exs"){ const w = state.workouts.find(x => x.id === id); return w ? { list: w.exercises = w.exercises || [], byIndex: false } : null; }
+  if (kind === "xopts"){ return { list: state.nutrition.exclusions, byIndex: false }; }
   if (kind === "mfoods"){ const m = state.nutrition.menu.find(x => x.id === id); return m ? { list: m.items = m.items || [], byIndex: true } : null; }
   return null;
 }
