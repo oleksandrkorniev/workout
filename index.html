@@ -464,6 +464,13 @@ if (!state.wtypeRename1){
   state.wtypes = state.wtypes.filter((t, i) => state.wtypes.findIndex(x => x.name === t.name) === i);
   state.wtypeRename1 = true;
 }
+// workout mode is DERIVED, not chosen: no exercises = single activity, any exercise = list
+function syncWMode(w){
+  if ((w.exercises || []).length) delete w.type;
+  else { w.type = "activity"; if (w.mins == null) w.mins = 60; }
+}
+state.workouts.forEach(syncWMode);
+(state.backup || []).forEach(syncWMode);
 for (const d in state.logs) for (const id in state.logs[d]){
   const e = state.logs[d][id];
   if (e && e.sets){ state.logs[d][id] = { done: e.sets.some(Boolean) }; }
@@ -704,12 +711,8 @@ function scheduleRow(w){
 }
 
 function wkCardEdit(w){
-  const isAct = w.type === "activity";
-  const wkChips = `<div class="row" style="margin-top:12px;gap:7px">
-    <button class="sm ${isAct ? "ghost" : "pri"}" data-act="wktype" data-w="${w.id}" data-t="list">Exercise list</button>
-    <button class="sm ${isAct ? "pri" : "ghost"}" data-act="wktype" data-w="${w.id}" data-t="activity">Single activity</button>
-  </div>
-  <div style="margin-top:12px"><label>Type: ${esc(cap1(wtypeOfW(w)))}</label>
+  const isAct = !(w.exercises || []).length;   // mode is derived: no exercises = single activity
+  const wkChips = `<div style="margin-top:12px"><label>Type: ${esc(cap1(wtypeOfW(w)))}</label>
     <div class="row" style="gap:8px;flex-wrap:wrap">
       ${state.wtypes.map(t => `<button class="ibtn ${wtypeOfW(w) === t.name ? "on" : ""}" data-act="wkwtype" data-w="${w.id}" data-t="${esc(t.name)}" title="${esc(cap1(t.name))}">
         <svg viewBox="0 0 24 24">${WICONS[t.icon] || ""}</svg></button>`).join("")}
@@ -734,7 +737,8 @@ function wkCardEdit(w){
       <div class="f3" style="margin-top:12px">
         <div><label>Minutes</label><input inputmode="numeric" data-act="wkmins" data-w="${w.id}" value="${esc(w.mins ?? 60)}"></div>
       </div>
-      <div class="tiny" style="margin-top:12px">One checkmark for the whole activity.</div>`;
+      <div style="margin-top:10px"><button class="ghost" data-act="addex" data-w="${w.id}">+ Add exercise</button></div>
+      <div class="tiny" style="margin-top:12px">One checkmark for the whole activity &mdash; add exercises to turn it into a list.</div>`;
   } else {
     const rows = (w.exercises || []).map(ex => {
       const r = resolve(ex);
@@ -775,7 +779,7 @@ function wkCardEdit(w){
       ${titleRow}
       ${wkChips}
       ${scheduleRow(w)}
-      <div style="margin-top:8px">${rows || `<div class="muted" style="padding:10px 0 4px">Name the workout above and add exercises below.</div>`}</div>
+      <div style="margin-top:8px">${rows}</div>
       <div style="margin-top:10px"><button class="ghost" data-act="addex" data-w="${w.id}">+ Add exercise</button></div>
       <div class="tiny" style="margin-top:12px">Sets / reps / kg are the <b>base</b> values. Autorules add on top. ${w._backup || state.backup.some(x => x.id === w.id) ? "This edits your home backup set, shown on any day you switch to Home." : "Changes apply everywhere this workout appears."}</div>`;
   }
@@ -1593,7 +1597,7 @@ function viewNutrition(){
             <span class="dragh" data-drag="limits">&#8801;</span>
             <div class="grow tap" data-act="exopen" data-ex="${x.id}">
               <div style="font-weight:600">${esc(x.name)}</div>
-              <div class="tiny">${cap1(x.xcat || "other")}${x.amt ? ` &middot; ${esc(x.amt)}` : ""} &middot; ${fmt(num(x.limit,0))}&times; per ${x.xper || "week"}${(x.alts || []).length ? ` &middot; ${x.alts.length} option${x.alts.length > 1 ? "s" : ""}` : ""}</div>
+              <div class="tiny">${cap1(x.xcat || "other")}${x.amt && !(x.alts || []).length ? ` &middot; ${esc(x.amt)}` : ""} &middot; ${fmt(num(x.limit,0))}&times; per ${x.xper || "week"}${(x.alts || []).length ? ` &middot; ${x.alts.length} option${x.alts.length > 1 ? "s" : ""}` : ""}</div>
             </div>
             ${delBtn("xdel", x.id, `data-x="${x.id}"`)}
           </div>
@@ -1609,14 +1613,14 @@ function viewNutrition(){
           ${[["meal","Meal"],["snack","Snack"]].map(([k, lb]) =>
             `<button class="sm ${x.xcat === k ? "pri" : "ghost"}" data-act="xcat" data-x="${x.id}" data-t="${k}">${lb}</button>`).join("")}
         </div>
-        ${(p2 => `<div style="margin-top:12px"><label>Serving (optional)</label>
+        ${!(x.alts || []).length ? (p2 => `<div style="margin-top:12px"><label>Serving (optional)</label>
         <div class="row" style="gap:6px">
           <input style="width:74px;flex:none;text-align:center" inputmode="decimal" placeholder="500" data-act="xq" data-x="${x.id}" value="${esc(p2.qty)}">
           <select style="width:84px;flex:none" data-act="xu" data-x="${x.id}">
             ${[...UNITS, ...(p2.unit && !UNITS.includes(p2.unit) ? [p2.unit] : [])].map(u => `<option value="${esc(u)}" ${u === p2.unit ? "selected" : ""}>${esc(u)}</option>`).join("")}
           </select>
-          <div class="tiny grow" style="margin:0">The cheat itself is one of its options.</div>
-        </div></div>`)(parseAmt(x.amt))}
+          <div class="tiny grow" style="margin:0">No options yet &mdash; the cheat itself is the choice.</div>
+        </div></div>`)(parseAmt(x.amt)) : ""}
         <div class="f3" style="margin-top:12px">
           <div><label>Times per ${x.xper || "week"}</label><input inputmode="numeric" data-act="xlimit" data-x="${x.id}" value="${esc(x.limit)}"></div>
         </div>
@@ -1959,6 +1963,7 @@ document.addEventListener("click", e => {
     render(); return; }
   if (a === "addwk"){
     const nw = { id: uid(), title: "New workout", exercises: [], wtype: "strength", days: [dayIdx(parseIso(sel))] };
+    syncWMode(nw);
     state.workouts.push(nw); wkOpen = nw.id; wkHome = "today"; exOpen = null;
     save(); render(); return;
   }
@@ -2255,12 +2260,6 @@ document.addEventListener("click", e => {
     else w.days = [...w.days, d].sort();
     save(); render(); return;
   }
-  if (a === "wktype"){
-    const w = findWk(el.dataset.w); if (!w) return;
-    if (el.dataset.t === "activity"){ w.type = "activity"; if (w.mins == null) w.mins = 60; }
-    else { delete w.type; if (!w.exercises) w.exercises = []; }
-    save(); render(); return;
-  }
   if (a === "extype"){
     const w = findWk(el.dataset.w); if (!w) return;
     const ex = w.exercises.find(x => x.id === el.dataset.ex); if (!ex) return;
@@ -2271,7 +2270,7 @@ document.addEventListener("click", e => {
   if (a === "addex"){
     const w = findWk(el.dataset.w); if (!w) return;
     const nx = { id: uid(), name: "New exercise", sets: 3, reps: 10, weight: 0 };
-    w.exercises.push(nx); exOpen = nx.id;
+    (w.exercises = w.exercises || []).push(nx); syncWMode(w); exOpen = nx.id;
     save(); render(); return;
   }
   if (a === "delex"){
@@ -2280,6 +2279,7 @@ document.addEventListener("click", e => {
     armed = null;
     const w = findWk(el.dataset.w); if (!w) return;
     w.exercises = w.exercises.filter(x => x.id !== el.dataset.ex);
+    syncWMode(w);
     save(); render(); return;
   }
   if (a === "addrule"){
