@@ -1861,13 +1861,13 @@ function viewNutrition(){
       }
       return `<div class="ex between tap" data-act="ndone" data-r="${h.id}">
         <div class="grow"><div class="name" style="${l[h.id] ? "color:var(--dim);text-decoration:line-through" : ""}">${esc(h.name)}</div></div>
-        <div class="chk ${l[h.id] ? "on" : ""}">&#10003;</div>
+        <div class="chk ${l[h.id] ? "on" : ""}" style="${l[h.id] ? "background:#38bdf8;border-color:#38bdf8" : ""}">&#10003;</div>
       </div>`;
     };
     html += `<div class="card">
       <div class="chead">
         ${secTitle("habits", "Habits", hl.length > 0 && hdone >= hl.length)}
-        ${hl.length ? ring(hdone / hl.length) : ""}
+        ${hl.length ? ring(hdone / hl.length, "#38bdf8") : ""}
       </div>
       ${hl.map(hrow).join("")}
       ${hl.length ? "" : `<div class="tiny" style="margin:12px 0 10px">No habits yet &mdash; start with a preset:</div>${presets}`}
