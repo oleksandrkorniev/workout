@@ -1967,7 +1967,7 @@ function render(){
       const wantCat = mtypeOf(m) === "snack" ? "snack" : (mtypeOf(m) === "lunch" || mtypeOf(m) === "dinner") ? "meal" : "none";
       const cheats = state.nutrition.exclusions.filter(x => x.xcat === wantCat).map(x =>
         `<div class="opt tap" data-act="xmeal" data-m="${m.id}" data-x="${x.id}" data-v="${amtLabel(x)}">
-            <div class="grow"><div class="oname" style="color:var(--warm)">${amtLabel(x)}</div></div>
+            <div class="grow"><div class="oname">${amtLabel(x)}</div></div>
             <div class="ck" style="color:var(--dim)">&#43;</div>
           </div>`).join("");
       content = own + (others ? `<div class="tiny" style="margin:12px 0 2px">Other ${mtypeOf(m) === "lunch" ? "lunches" : esc(mtypeOf(m)) + "s"}</div>${others}` : "")
