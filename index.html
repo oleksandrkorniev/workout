@@ -215,6 +215,7 @@ nav svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.9;st
 <script>
 "use strict";
 const KEY = "workout.v1";
+const SNAPKEY = "workout.snaps.v1";   // day-snapshot archive: separate store so every-tap saves stay small
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const uid = () => Math.random().toString(36).slice(2,9);
 const num = (v, d=0) => { const n = parseFloat(String(v).replace(",",".")); return isNaN(n) ? d : n; };
@@ -326,6 +327,14 @@ let gSel = null;               // trend graph: date of the tapped point (its val
 let gEdit = null;              // trend history: date of the log being edited
 let gAdd = false;              // trend graph: add-log inset open
 try { state = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch(e) { state = seed(); }
+// history split (photos-style): snapshots live under SNAPKEY; a pre-split state
+// still carries them inline — adopt those and let the first save move them over
+let snapDirty = false;
+try {
+  const storedSnaps = JSON.parse(localStorage.getItem(SNAPKEY));
+  if (storedSnaps) state.snaps = storedSnaps;
+  else if (state.snaps) snapDirty = true;
+} catch(e) {}
 if (state.profile.regimeDays == null) state.profile.regimeDays = 90;
 if (!state.backup){
   const ex = (name, sets, reps, weight) => ({ id: uid(), name, sets, reps, weight });
@@ -549,7 +558,14 @@ const gcTypes = () => {
   if (state.wtypes) state.wtypes = state.wtypes.filter(t =>
     t.name === "strength" || t.name === "cardio" || state.workouts.some(x => wtypeOfW(x) === t.name));
 };
-const save = () => { try { gcTypes(); snapDays(); } catch(e) {} try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} };
+const save = () => {
+  try { gcTypes(); if (snapDays()) snapDirty = true; } catch(e) {}
+  try {
+    const { snaps, ...live } = state;
+    localStorage.setItem(KEY, JSON.stringify(live));
+    if (snapDirty){ localStorage.setItem(SNAPKEY, JSON.stringify(state.snaps || {})); snapDirty = false; }
+  } catch(e) {}
+};
 
 /* ---------- progression engine ---------- */
 function weeksElapsed(){
@@ -1445,15 +1461,18 @@ function daySnap(ds){
 }
 function snapDays(){
   state.snaps = state.snaps || {};
+  let changed = false;
   const today = iso(new Date());
   const start = parseIso(state.profile.anchor || today);
   if (!isNaN(start)) for (let d = new Date(start), i = 0; iso(d) < today && i < 400; d.setDate(d.getDate() + 1), i++){
-    if (!state.snaps[iso(d)]) state.snaps[iso(d)] = daySnap(iso(d));   // missed day: freeze with the config we have now
+    if (!state.snaps[iso(d)]){ state.snaps[iso(d)] = daySnap(iso(d)); changed = true; }   // missed day: freeze with the config we have now
   }
-  state.snaps[today] = daySnap(today);                                 // today always mirrors the current config
+  const t2 = daySnap(today);                                           // today always mirrors the current config
+  if (JSON.stringify(state.snaps[today]) !== JSON.stringify(t2)){ state.snaps[today] = t2; changed = true; }
   const cut = new Date(); cut.setDate(cut.getDate() - 400);
   const cutIso = iso(cut);
-  for (const k in state.snaps) if (k < cutIso) delete state.snaps[k];
+  for (const k in state.snaps) if (k < cutIso){ delete state.snaps[k]; changed = true; }
+  return changed;
 }
 const snapOf = ds => ds < iso(new Date()) ? (state.snaps || {})[ds] : null;
 function resnapWorkout(ds, wid){
@@ -1461,6 +1480,7 @@ function resnapWorkout(ds, wid){
   const w = state.workouts.find(x => x.id === wid); if (!w) return;
   const i = s.w.findIndex(x => x.id === wid);
   if (i >= 0) s.w[i] = snapWk(w, ds); else s.w.push(snapWk(w, ds));
+  snapDirty = true;
 }
 
 // a cheat's limit applies per its period: day | week (default) | month
